@@ -1,13 +1,17 @@
+using Microsoft.EntityFrameworkCore;
+using SecureChat.Database;
 using SecureChat.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddDbContext<SecureChatDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), 
+        b => b.MigrationsAssembly("SecureChat.Database")));
+
 builder.Services.AddGrpc();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 app.MapGrpcService<GreeterService>();
 app.MapGet("/",
     () =>

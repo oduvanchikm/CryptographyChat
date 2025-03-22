@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Broker", "Secure
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Database", "SecureChat.Database\SecureChat.Database.csproj", "{482DF63E-479D-4668-884D-91D7B685FEEA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Common", "SecureChat.Common\SecureChat.Common.csproj", "{77EDA91E-A8C4-4DA0-9565-91B0530573B4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{482DF63E-479D-4668-884D-91D7B685FEEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{482DF63E-479D-4668-884D-91D7B685FEEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{482DF63E-479D-4668-884D-91D7B685FEEA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
