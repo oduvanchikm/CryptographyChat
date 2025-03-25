@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Database", "Secu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Common", "SecureChat.Common\SecureChat.Common.csproj", "{77EDA91E-A8C4-4DA0-9565-91B0530573B4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cryptography", "Cryptography\Cryptography.csproj", "{7BD18276-5A2A-4C5B-8C19-5235A6DFBFBD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77EDA91E-A8C4-4DA0-9565-91B0530573B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BD18276-5A2A-4C5B-8C19-5235A6DFBFBD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BD18276-5A2A-4C5B-8C19-5235A6DFBFBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BD18276-5A2A-4C5B-8C19-5235A6DFBFBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BD18276-5A2A-4C5B-8C19-5235A6DFBFBD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
