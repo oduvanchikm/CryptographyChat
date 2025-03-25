@@ -1,6 +1,8 @@
+using Cryptography.Interfaces;
+
 namespace Cryptography.RC5;
 
-public class RC5
+public class RC5 : ISymmetricEncryptionAlgorithm
 {
     private readonly byte[][] S;
     private const int rounds = 12; 
@@ -14,7 +16,7 @@ public class RC5
         S = expandedKey;
     }
     
-    public void Encrypt(byte[] plaintext, byte[] ciphertext)
+    public byte[] Encrypt(byte[] plaintext, byte[] ciphertext)
     {
         BitManipulation.ValidateBlock(plaintext, ciphertext);
 
@@ -32,9 +34,11 @@ public class RC5
 
         Array.Copy(A, 0, ciphertext, 0, 4);
         Array.Copy(B, 0, ciphertext, 4, 4);
+        
+        return ciphertext;
     }
     
-    public void Decrypt(byte[] ciphertext, byte[] plaintext)
+    public byte[] Decrypt(byte[] ciphertext, byte[] plaintext)
     {
         BitManipulation.ValidateBlock(ciphertext, plaintext);
 
@@ -52,5 +56,7 @@ public class RC5
 
         Array.Copy(BitManipulation.SubtractBytes(A, S[0]), 0, plaintext, 0, 4);
         Array.Copy(BitManipulation.SubtractBytes(B, S[1]), 0, plaintext, 4, 4);
+        
+        return plaintext;
     }
 }
