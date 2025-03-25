@@ -8,7 +8,6 @@
 
     <ItemGroup>
       <Folder Include="MARS\" />
-      <Folder Include="RC5\" />
     </ItemGroup>
 
 </Project>
