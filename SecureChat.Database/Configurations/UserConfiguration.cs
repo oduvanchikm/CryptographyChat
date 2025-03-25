@@ -20,5 +20,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.Username)
             .IsRequired()
             .HasMaxLength(50);
+
+        builder.Property(x => x.PublicKey)
+            .IsRequired();
+        
+        builder.HasMany(x => x.Session)
+            .WithOne(ch => ch.User)
+            .HasForeignKey(ch => ch.UserId);
     }
 }
