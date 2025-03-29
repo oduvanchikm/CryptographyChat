@@ -12,21 +12,20 @@ using AuthServiceBase = SecureChat.Server.Protos.AuthService.AuthServiceBase;
 
 namespace SecureChat.Server.Services;
 
-public class AuthService : AuthServiceBase
+public class AuthService(
+    IDbContextFactory<SecureChatDbContext> dbContextFactory,
+    IConfiguration configuration,
+    ILogger<AuthService> logger) : AuthServiceBase
 {
-    private readonly SecureChatDbContext _dbContext;
-    private readonly IConfiguration _configuration;
-
-    public AuthService(SecureChatDbContext dbContext, IConfiguration configuration)
-    {
-        _dbContext = dbContext;
-        _configuration = configuration;
-    }
-
     public override async Task<AuthResponse> Register(RegisterRequest request, ServerCallContext context)
     {
-        if (await _dbContext.Users.AnyAsync(u => u.Email == request.Email))
+        await using var contextDb = await dbContextFactory.CreateDbContextAsync();
+
+        if (await contextDb.Users.AnyAsync(u => u.Email == request.Email))
+        {
+            logger.LogError($"User with email {request.Email} already exists.");
             return new AuthResponse { Message = "User was created" };
+        }
 
         var user = new User
         {
@@ -35,26 +34,36 @@ public class AuthService : AuthServiceBase
             PasswordHash = PasswordHelper.HashPassword(request.Password)
         };
 
-        _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
+        contextDb.Users.Add(user);
+        await contextDb.SaveChangesAsync();
+
+        logger.LogInformation($"User with email {request.Email} has been created.");
 
         return new AuthResponse { Message = "Registered" };
     }
-    
+
     public override async Task<AuthResponse> Login(LoginRequest request, ServerCallContext context)
     {
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        await using var contextDb = await dbContextFactory.CreateDbContextAsync();
+
+        var user = await contextDb.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
         if (user == null || !PasswordHelper.VerifyPassword(request.Password, user.PasswordHash))
+        {
+            logger.LogError($"User with email {request.Email} not found.");
             return new AuthResponse { Message = "Wrong password or email" };
-        
+        }
+
         var token = GenerateJwtToken(user);
 
+        logger.LogInformation($"User with email {request.Email} has been logged in.");
         return new AuthResponse { Token = token, Message = "Authenticated" };
     }
 
     private string GenerateJwtToken(User user)
     {
-        var jwtSettings = _configuration.GetSection("Jwt");
+        logger.LogInformation("start generating jwt");
+        var jwtSettings = configuration.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
 
         var claims = new[]
@@ -70,6 +79,8 @@ public class AuthService : AuthServiceBase
             claims: claims,
             expires: DateTime.UtcNow.AddHours(2),
             signingCredentials: credentials);
+
+        logger.LogInformation("jwt token generated");
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

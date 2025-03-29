@@ -1,6 +1,14 @@
+using Microsoft.AspNetCore.Components.Authorization;
 using SecureChat.Client.Components;
+using SecureChat.Client.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<AuthService>(provider => 
+    new AuthService(builder.Configuration["https://localhost:5001"]));
+builder.Services.AddScoped<TokenAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(provider => 
+    provider.GetRequiredService<TokenAuthenticationStateProvider>());
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
