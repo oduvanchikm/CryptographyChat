@@ -4,8 +4,11 @@ using SecureChat.Client.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var serverAddress = builder.Configuration["Grpc:ServerAddress"] 
+                    ?? "https://localhost:5001";
+
 builder.Services.AddSingleton<AuthService>(provider => 
-    new AuthService(builder.Configuration["https://localhost:5001"]));
+    new AuthService(serverAddress));
 builder.Services.AddScoped<TokenAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(provider => 
     provider.GetRequiredService<TokenAuthenticationStateProvider>());

@@ -12,7 +12,7 @@ using SecureChat.Database;
 namespace SecureChat.Database.Migrations
 {
     [DbContext(typeof(SecureChatDbContext))]
-    [Migration("20250325193857_AddTables")]
+    [Migration("20250329183355_AddTables")]
     partial class AddTables
     {
         /// <inheritdoc />
