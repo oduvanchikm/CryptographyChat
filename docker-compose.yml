@@ -1,6 +1,8 @@
 services:
   securechat.server:
     image: securechat-server
+    volumes:
+      - aspnet-data-protection-keys:/root/.aspnet/DataProtection-Keys
     build:
       context: .
       dockerfile: SecureChat.Server/Dockerfile
@@ -54,3 +56,4 @@ services:
 
 volumes:
   postgres_data:
+  aspnet-data-protection-keys:

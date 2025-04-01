@@ -14,10 +14,14 @@ public class ChatsConfiguration : IEntityTypeConfiguration<Chats>
             .IsRequired()
             .HasMaxLength(50);
         
+        builder.Property(x => x.Algorithm)
+            .IsRequired()
+            .HasMaxLength(50);
+        
         builder.Property(x => x.CreatedAt)
             .IsRequired();
         
-        builder.HasMany(x => x.Session)
+        builder.HasMany(x => x.ChatUser)
             .WithOne(ch => ch.Chat)
             .HasForeignKey(ch => ch.ChatId);
     }

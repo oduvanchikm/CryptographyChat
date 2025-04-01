@@ -1,0 +1,181 @@
+/* RegisterPage.css */
+
+.home-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.auth-container {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.register-container {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 400px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.info-container {
+    margin-left: 4rem;
+    max-width: 400px;
+    color: #333;
+}
+
+.info-container h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(90deg, #9c27b0, #e91e63);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+h1 {
+    color: #7b1fa2;
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.input-group {
+    margin-bottom: 1.5rem;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #7b1fa2;
+    font-weight: 500;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s;
+    background-color: #f9f9f9;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #9c27b0;
+    box-shadow: 0 0 0 3px rgba(156, 39, 176, 0.2);
+}
+
+.submit-button {
+    width: 100%;
+    padding: 0.8rem;
+    background: linear-gradient(90deg, #9c27b0, #e91e63);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+}
+
+.submit-button:hover {
+    background: linear-gradient(90deg, #8e24aa, #d81b60);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+}
+
+.submit-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+p {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: #666;
+}
+
+a {
+    color: #9c27b0;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: #7b1fa2;
+}
+
+.button-container {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+}
+
+.action-button {
+    padding: 0.5rem 1rem;
+    background-color: #f3e5f5;
+    color: #9c27b0;
+    border: 1px solid #9c27b0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-button:hover {
+    background-color: #e1bee7;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .auth-container {
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    .info-container {
+        margin-left: 0;
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .register-container {
+        padding: 1.5rem;
+    }
+}
+
+.error {
+    color: #e91e63;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.api-error {
+    color: #e91e63;
+    text-align: center;
+    margin: 1rem 0;
+}

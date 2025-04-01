@@ -21,10 +21,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(50);
 
-        builder.Property(x => x.PublicKey)
+        builder.Property(x => x.CreatedAt)
             .IsRequired();
         
-        builder.HasMany(x => x.Session)
+        builder.Property(x => x.LastLogin)
+            .IsRequired();
+        
+        builder.HasMany(x => x.ChatUser)
             .WithOne(ch => ch.User)
             .HasForeignKey(ch => ch.UserId);
     }

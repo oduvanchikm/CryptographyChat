@@ -1,0 +1,118 @@
+import React, {useState} from 'react';
+import {Link, useNavigate} from 'react-router-dom';
+import './RegisterPage.css';
+
+function RegisterPage() {
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        username: ''
+    });
+
+    const [errors, setErrors] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
+
+    const validate = () => {
+        const newErrors = {};
+        if (!formData.email.includes('@')) newErrors.email = 'Invalid email';
+        if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        if (formData.username.length < 3) newErrors.username = 'Username must be at least 3 characters';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validate()) return;
+
+        setIsLoading(true);
+        try {
+            const response = await fetch(' http://localhost:5078/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Registration failed');
+            }
+
+            navigate('/login');
+        } catch (error) {
+            setErrors({ api: error.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    return (
+        <div className="home-container">
+            <div className="auth-container">
+                <div className="register-container">
+                    <h1>Sign Up</h1>
+                    <form onSubmit={handleSubmit}>
+                        <div className="input-group">
+                            <label>Email</label>
+                            <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                            />
+                            {errors.email && <span className="error">{errors.email}</span>}
+                        </div>
+                        <div className="input-group">
+                            <label>Name</label>
+                            <input
+                                type="username"
+                                name="username"
+                                value={formData.username}
+                                onChange={handleChange}
+                            />
+                            {errors.email && <span className="error">{errors.email}</span>}
+                        </div>
+                        <div className="input-group">
+                            <label>Password</label>
+                            <input
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                placeholder="Enter your password"
+                                disabled={isLoading}
+                            />
+                            {errors.email && <span className="error">{errors.email}</span>}
+                        </div>
+                        <button type="submit" className="submit-button">
+                            {isLoading ? <span className="Loader..."></span> : "Sign up"}
+                        </button>
+                    </form>
+                    <p>
+                        Already have an account? <Link to="/login">Login</Link>
+                    </p>
+                </div>
+
+                <div className="info-container">
+                    <div>
+                        <h2>Welcome to the Telegram!</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div className="button-container">
+                <Link to="/">
+                    <button className="action-button">Back</button>
+                </Link>
+            </div>
+        </div>
+    );
+}
+
+export default RegisterPage;

@@ -35,4 +35,8 @@
       <ProjectReference Include="..\SecureChat.Database\SecureChat.Database.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Services\" />
+    </ItemGroup>
+
 </Project>

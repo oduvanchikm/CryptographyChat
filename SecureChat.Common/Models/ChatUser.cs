@@ -1,6 +1,6 @@
 namespace SecureChat.Common.Models;
 
-public class Sessions
+public class ChatUser
 {
     public int UserId { get; set; }
     public User User { get; set; }

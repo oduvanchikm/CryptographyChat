@@ -1,0 +1,21 @@
+# This is a generated file. Not intended for manual editing.
+services:
+  securechat.server:
+    build:
+      context: "/Users/oduvanchik/Desktop/SecureChatSolution"
+      dockerfile: "SecureChat.Server/Dockerfile"
+      target: "base"
+    command: []
+    entrypoint:
+    - "dotnet"
+    - "/app/bin/Debug/net8.0/SecureChat.Server.dll"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    image: "securechat-server:dev"
+    ports: []
+    volumes:
+    - "/Users/oduvanchik/.nuget/packages:/root/.nuget/packages"
+    - "/Users/oduvanchik/Desktop/SecureChatSolution/SecureChat.Server:/app:rw"
+    - "/Users/oduvanchik/Desktop/SecureChatSolution:/src:rw"
+    working_dir: "/app"
