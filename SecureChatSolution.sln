@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Server", "SecureChat.Server\SecureChat.Server.csproj", "{AB779484-E9B4-42BC-A9C2-2C88BFBE893E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Client", "SecureChat.Client\SecureChat.Client.csproj", "{8C910E96-5FD2-48DC-B25E-FB12415F5CC5}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Broker", "SecureChat.Broker\SecureChat.Broker.csproj", "{2B753B91-E24B-42A8-895E-CE05699EE026}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureChat.Database", "SecureChat.Database\SecureChat.Database.csproj", "{482DF63E-479D-4668-884D-91D7B685FEEA}"
@@ -22,10 +20,6 @@ Global
 		{AB779484-E9B4-42BC-A9C2-2C88BFBE893E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AB779484-E9B4-42BC-A9C2-2C88BFBE893E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AB779484-E9B4-42BC-A9C2-2C88BFBE893E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8C910E96-5FD2-48DC-B25E-FB12415F5CC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8C910E96-5FD2-48DC-B25E-FB12415F5CC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8C910E96-5FD2-48DC-B25E-FB12415F5CC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8C910E96-5FD2-48DC-B25E-FB12415F5CC5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2B753B91-E24B-42A8-895E-CE05699EE026}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2B753B91-E24B-42A8-895E-CE05699EE026}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B753B91-E24B-42A8-895E-CE05699EE026}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -11,14 +11,13 @@ services:
       - securechat.database
       - kafka
 
-  securechat.client:
-    image: securechat-client
+  frontend:
+    image: frontend
     build:
-      context: .
-      dockerfile: SecureChat.Client/Dockerfile
+      context: .  # Путь к вашему React-проекту
+      dockerfile: frontend/Dockerfile
     ports:
-      - "8083:8080" 
-      - "8443:8443" 
+      - "3000:80"  # Прокси на 80 порт внутри контейнера для Nginx
     depends_on:
       - securechat.server
 
