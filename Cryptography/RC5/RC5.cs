@@ -4,59 +4,94 @@ namespace Cryptography.RC5;
 
 public class RC5 : ISymmetricEncryptionAlgorithm
 {
-    private readonly byte[][] S;
-    private const int rounds = 12; 
-    private const int t = 26;
-    
-    public RC5(byte[][] expandedKey)
+    private IKeyExpansion _keyExpansion;
+    private readonly byte[][] _S;
+    private const int w = 32;
+    private const int r = 12;
+    private readonly int t;
+
+    public RC5(byte[] key)
     {
-        if (expandedKey.Length != t || expandedKey[0].Length != 4)
-            throw new ArgumentException($"Invalid key size. Expected {t} words of 4 bytes each");
-        
-        S = expandedKey;
+        _keyExpansion = new KeyExpansion();
+        _S = _keyExpansion.GenerateRoundKeys(key);
+        t = 2 * (r + 1);
     }
     
-    public byte[] Encrypt(byte[] plaintext, byte[] ciphertext)
+    public byte[] Encrypt(byte[] data)
     {
-        BitManipulation.ValidateBlock(plaintext, ciphertext);
+        Console.WriteLine("старт");
+        byte[] encrypted = new byte[data.Length];
 
-        byte[] A = BitManipulation.AddBytes(BitManipulation.GetWord(plaintext, 0), S[0]);
-        byte[] B = BitManipulation.AddBytes(BitManipulation.GetWord(plaintext, 4), S[1]);
-
-        for (int i = 1; i <= rounds; i++)
+        for (int j = 0; j < data.Length; j += 8)
         {
-            byte[] temp = BitManipulation.XorBytes(A, B);
-            A = BitManipulation.AddBytes(BitManipulation.RotateLeft(temp, BitConverter.ToInt32(B, 0)), S[2 * i]);
-            
-            temp = BitManipulation.XorBytes(B, A);
-            B = BitManipulation.AddBytes(BitManipulation.RotateLeft(temp, BitConverter.ToInt32(A, 0)), S[2 * i + 1]);
-        }
+            byte[] block = new byte[8];
+            Array.Copy(data, j, block, 0, 8);
 
-        Array.Copy(A, 0, ciphertext, 0, 4);
-        Array.Copy(B, 0, ciphertext, 4, 4);
-        
-        return ciphertext;
+            byte[] A = new byte[4];
+            byte[] B = new byte[4];
+            Array.Copy(block, 0, A, 0, 4);
+            Array.Copy(block, 4, B, 0, 4);
+
+            A = BitManipulation.AddBytes(A, _S[0]);
+            B = BitManipulation.AddBytes(B, _S[1]);
+
+            for (int i = 1; i <= r; ++i)
+            {
+                A = BitManipulation.AddBytes(
+                    BitManipulation.LeftRotateBytes(BitManipulation.Xor(A, B), BitConverter.ToInt32(B, 0), w),
+                    _S[2 * i]
+                );
+
+                B = BitManipulation.AddBytes(
+                    BitManipulation.LeftRotateBytes(BitManipulation.Xor(B, A), BitConverter.ToInt32(A, 0), w),
+                    _S[2 * i + 1]
+                );
+            }
+
+            Array.Copy(A, 0, encrypted, j, 4);
+            Array.Copy(B, 0, encrypted, j + 4, 4);
+        }
+        Console.WriteLine("финиш");
+
+        return encrypted;
     }
-    
-    public byte[] Decrypt(byte[] ciphertext, byte[] plaintext)
+
+    public byte[] Decrypt(byte[] data)
     {
-        BitManipulation.ValidateBlock(ciphertext, plaintext);
+        Console.WriteLine("стар дт");
+        byte[] decrypted = new byte[data.Length];
 
-        byte[] A = BitManipulation.GetWord(ciphertext, 0);
-        byte[] B = BitManipulation.GetWord(ciphertext, 4);
-
-        for (int i = rounds; i > 0; i--)
+        for (int j = 0; j < data.Length; j += 8)
         {
-            byte[] temp = BitManipulation.SubtractBytes(B, S[2 * i + 1]);
-            B = BitManipulation.XorBytes(BitManipulation.RotateRight(temp, BitConverter.ToInt32(A, 0)), A);
-            
-            temp = BitManipulation.SubtractBytes(A, S[2 * i]);
-            A = BitManipulation.XorBytes(BitManipulation.RotateRight(temp, BitConverter.ToInt32(B, 0)), B);
-        }
+            byte[] block = new byte[8];
+            Array.Copy(data, j, block, 0, 8);
 
-        Array.Copy(BitManipulation.SubtractBytes(A, S[0]), 0, plaintext, 0, 4);
-        Array.Copy(BitManipulation.SubtractBytes(B, S[1]), 0, plaintext, 4, 4);
-        
-        return plaintext;
+            byte[] A = new byte[4];
+            byte[] B = new byte[4];
+            Array.Copy(block, 0, A, 0, 4);
+            Array.Copy(block, 4, B, 0, 4);
+
+            for (int i = r; i >= 1; --i)
+            {
+                B = BitManipulation.Xor(
+                    BitManipulation.RightRotateBytes(BitManipulation.SubBytes(B, _S[2 * i + 1]), BitConverter.ToInt32(A, 0), w),
+                    A
+                );
+
+                A = BitManipulation.Xor(
+                    BitManipulation.RightRotateBytes(BitManipulation.SubBytes(A, _S[2 * i]), BitConverter.ToInt32(B, 0), w),
+                    B
+                );
+            }
+
+            B = BitManipulation.SubBytes(B, _S[1]);
+            A = BitManipulation.SubBytes(A, _S[0]);
+
+            Array.Copy(A, 0, decrypted, j, 4);
+            Array.Copy(B, 0, decrypted, j + 4, 4);
+        }
+        Console.WriteLine("финиш д");
+
+        return decrypted;
     }
 }

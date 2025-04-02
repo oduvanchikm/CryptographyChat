@@ -1,54 +1,86 @@
 using Cryptography.Interfaces;
 
 namespace Cryptography.RC5;
-
 public class KeyExpansion : IKeyExpansion
 {
-    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 };
-    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 };
-    
-    private const int w = 32;          // размер слова в битах (4 байта)
-    private const int rounds = 12;          // количество раундов
-    private const int b = 16;          // длина ключа в байтах
-    private const int c = 4;           // количество слов в ключе (b/(w/8))
-    private const int t = 26;          // размер таблицы S (2*(r+1))
+    private const int w = 32; // Длина слова в битах
+    private const int r = 12; // Количество раундов
+    private const int b = 16; // Длина ключа в байтах
+    private const int u = w / 8; // Длина слова в байтах
+    private readonly int c; // Количество слов в ключе
+    private readonly int t; // Длина расширенного ключа (в словах)
+
+    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 }; 
+    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 }; 
+
+    public KeyExpansion()
+    { 
+        c = (int)Math.Ceiling((double)b / u);  
+        t = 2 * (r + 1);  
+    }
     
     public byte[][] GenerateRoundKeys(byte[] key)
     {
-        byte[][] S = new byte[t][]; // Расширенная таблица ключей
-        byte[][] L = new byte[c][]; // Массив слов ключа
+        Console.WriteLine("key: " + BitConverter.ToString(key));
+        if (key.Length != b)
+            throw new ArgumentException($"Key length must be {b} bytes");
         
-        // 1. Инициализация массива L из ключа K
+        byte[][] K = new byte[c][];
+        byte[][] S = new byte[t][];
+        Console.WriteLine("1");
+
         for (int i = 0; i < c; i++)
         {
-            L[i] = new byte[4];
-            Array.Copy(key, i * 4, L[i], 0, 4);
+            K[i] = new byte[u];
+            Array.Copy(key, i * u, K[i], 0, u);
         }
-        
-        // 2. Инициализация таблицы S
-        S[0] = Pw;
-        for (int i = 1; i < rounds; ++i)
+        Console.WriteLine("2");
+
+        S[0] = new byte[u];
+        Array.Copy(Pw, 0, S[0], 0, u);
+        Console.WriteLine("3");
+
+        for (int i = 1; i < t; i++)
         {
-            S[i] = BitManipulation.AddByteArrays(S[i - 1], Qw);
+            S[i] = new byte[u];  // Инициализация массива перед использованием
+            S[i] = BitManipulation.AddBytes(S[i - 1], Qw);
         }
-        
-        // Смешивание ключа с таблицей S
-        byte[] A = new byte[4];
-        byte[] B = new byte[4];
-        
-        for (int k = 0, i = 0, j = 0; k < 3 * t; k++)
+        Console.WriteLine("4");
+
+        byte[] A = new byte[u];
+        byte[] B = new byte[u];
+        int iIndex = 0, jIndex = 0;
+        int maxIter = 3 * Math.Max(t, c);
+        Console.WriteLine("5");
+
+        for (int k = 0; k < maxIter; k++)
         {
-            byte[] temp = BitManipulation.AddByteArrays(BitManipulation.AddByteArrays(S[i], A), B);
-            S[i] = BitManipulation.RotateLeft(temp, 3);
-            A = S[i];
-            
-            temp = BitManipulation.AddByteArrays(BitManipulation.AddByteArrays(L[j], A), B);
-            L[j] = BitManipulation.RotateLeft(temp, BitConverter.ToInt32(BitManipulation.AddByteArrays(A, B), 0));
-            B = L[j];
-            
-            i = (i + 1) % t;
-            j = (j + 1) % c;
+            Console.WriteLine("6");
+
+            // Проверяем, что S[iIndex] и K[jIndex] инициализированы
+            if (S[iIndex] == null) S[iIndex] = new byte[u];
+            if (K[jIndex] == null) K[jIndex] = new byte[u];
+
+            S[iIndex] = BitManipulation.LeftRotateBytes(
+                BitManipulation.AddBytes(S[iIndex], BitManipulation.AddBytes(A, B)), 
+                3, 
+                w
+            );
+            A = (byte[])S[iIndex].Clone();
+            Console.WriteLine("6,5");
+
+            K[jIndex] = BitManipulation.LeftRotateBytes(
+                BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)), 
+                BitConverter.ToInt32(A, 0) % w,
+                w
+            );
+            B = (byte[])K[jIndex].Clone();
+            Console.WriteLine("7");
+
+            iIndex = (iIndex + 1) % t;
+            jIndex = (jIndex + 1) % c;
         }
+        Console.WriteLine("8");
 
         return S;
     }
