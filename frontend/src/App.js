@@ -3,6 +3,7 @@ import RegisterPage from './components/RegisterPage';
 import './App.css';
 import LoginPage from "./components/LoginPage";
 import ChatsPage from "./components/ChatsPage";
+// import PersChatPage from "./components/PersChatPage";
 
 function App() {
     return (
@@ -12,6 +13,7 @@ function App() {
                 <Route path="/register" element={<RegisterPage/>}/>
                 <Route path="/login" element={<LoginPage/>}/>
                 <Route path="/chats" element={<ChatsPage/>}/>
+                {/*<Route path="/chat/:chatId" element={<PersChatPage />} />*/}
             </Routes>
         </Router>
     );

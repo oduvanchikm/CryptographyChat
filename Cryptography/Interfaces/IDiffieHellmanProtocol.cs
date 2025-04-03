@@ -4,7 +4,6 @@ namespace Cryptography.Interfaces;
 
 public interface IDiffieHellmanProtocol
 {
-    BigInteger GeneratePrivateKey();
-    BigInteger GeneratePublicKey(BigInteger privateKey);
-    BigInteger ComputeSharedSecret(BigInteger publicKey, BigInteger privateKey);
+    (string publicKey, string privateKey) GenerateKeyPair();
+    string CalculateSharesSecret(string publicKey, string privateKey);
 }

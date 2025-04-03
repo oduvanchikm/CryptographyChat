@@ -29,7 +29,7 @@ function LoginPage() {
             const response = await fetch('http://localhost:5078/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', 
+                credentials: 'include',
                 body: JSON.stringify(formData),
             });
 

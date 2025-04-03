@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Confluent.Kafka" Version="2.9.0" />
         <PackageReference Include="Google.Protobuf" Version="3.30.1" />
         <PackageReference Include="Grpc.AspNetCore" Version="2.57.0"/>
         <PackageReference Include="Grpc.Core.Api" Version="2.70.0" />
@@ -33,10 +34,6 @@
       <ProjectReference Include="..\SecureChat.Broker\SecureChat.Broker.csproj" />
       <ProjectReference Include="..\SecureChat.Common\SecureChat.Common.csproj" />
       <ProjectReference Include="..\SecureChat.Database\SecureChat.Database.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Services\" />
     </ItemGroup>
 
 </Project>
