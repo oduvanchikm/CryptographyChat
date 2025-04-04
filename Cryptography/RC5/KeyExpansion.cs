@@ -10,8 +10,8 @@ public class KeyExpansion : IKeyExpansion
     private readonly int c; // Количество слов в ключе
     private readonly int t; // Длина расширенного ключа (в словах)
 
-    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 }; 
-    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 }; 
+    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 }; // 0xB7E15163
+    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 }; // 0x9E3779B9
 
     public KeyExpansion()
     { 
@@ -57,7 +57,6 @@ public class KeyExpansion : IKeyExpansion
         {
             Console.WriteLine("6");
 
-            // Проверяем, что S[iIndex] и K[jIndex] инициализированы
             if (S[iIndex] == null) S[iIndex] = new byte[u];
             if (K[jIndex] == null) K[jIndex] = new byte[u];
 
@@ -66,15 +65,15 @@ public class KeyExpansion : IKeyExpansion
                 3, 
                 w
             );
-            A = (byte[])S[iIndex].Clone();
+            A = S[iIndex];
             Console.WriteLine("6,5");
 
             K[jIndex] = BitManipulation.LeftRotateBytes(
                 BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)), 
-                BitConverter.ToInt32(A, 0) % w,
+                BitConverter.ToInt32(A, 0) % w, // Защита от выхода за границы
                 w
             );
-            B = (byte[])K[jIndex].Clone();
+            B = K[jIndex];
             Console.WriteLine("7");
 
             iIndex = (iIndex + 1) % t;

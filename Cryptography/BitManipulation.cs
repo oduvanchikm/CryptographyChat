@@ -4,40 +4,70 @@ public class BitManipulation
 {
     public static byte[] LeftRotateBytes(byte[] x, int shift, int w)
     {
-        if (x == null || x.Length == 0)
-            throw new ArgumentException("Input array must not be null or empty");
-
-        int byteLen = x.Length;
-        byte[] result = new byte[byteLen];
-
-        shift %= w;
+        shift = (shift % w + w) % w; 
         if (shift == 0) return (byte[])x.Clone();
 
+        int totalBytes = x.Length;
+        byte[] result = new byte[totalBytes];
+    
         int byteShift = shift / 8;
         int bitShift = shift % 8;
 
-        for (int i = 0; i < byteLen; i++)
+        for (int i = 0; i < totalBytes; i++)
         {
-            int newIndex = (i + byteShift) % byteLen;
-
-            if (newIndex < 0 || newIndex >= byteLen)
-            {
-                throw new IndexOutOfRangeException($"newIndex ({newIndex}) вышел за границы массива (0-{byteLen - 1})");
-            }
-
-            byte currentByte = x[i];
-            byte nextByte = x[(i + 1) % byteLen];
+            int currentIdx = i;
+            int nextIdx = (i + 1) % totalBytes;
+        
+            int newIdx = (i + byteShift) % totalBytes;
+        
+            byte currentByte = x[currentIdx];
+            byte nextByte = x[nextIdx];
 
             if (bitShift == 0)
             {
-                result[newIndex] = currentByte;
+                result[newIdx] = currentByte;
             }
             else
             {
-                result[newIndex] = (byte)(
-                    ((currentByte << bitShift) & 0xFF) | 
-                    ((nextByte >> (8 - bitShift)) & 0xFF)
-                );
+                ushort combined = (ushort)((currentByte << 8) | nextByte);
+                ushort rotated = (ushort)((combined << bitShift) | (combined >> (16 - bitShift)));
+                result[newIdx] = (byte)(rotated >> 8);
+            }
+        }
+
+        return result;
+    }
+    
+    public static byte[] RightRotateBytes(byte[] x, int shift, int w)
+    {
+        shift = ((shift % w) + w) % w;
+        if (shift == 0) return (byte[])x.Clone();
+
+        int totalBytes = x.Length;
+        byte[] result = new byte[totalBytes];
+    
+        int byteShift = shift / 8;
+        int bitShift = shift % 8;
+
+        for (int i = 0; i < totalBytes; i++)
+        {
+            int currentIdx = i;
+            int prevIdx = (i - 1 + totalBytes) % totalBytes;
+        
+            int newIdx = (i - byteShift + totalBytes) % totalBytes;
+        
+            byte currentByte = x[currentIdx];
+            byte prevByte = x[prevIdx];
+
+            if (bitShift == 0)
+            {
+                result[newIdx] = currentByte;
+            }
+            else
+            {
+                ushort combined = (ushort)((prevByte << 8) | currentByte);
+                ushort rotated = (ushort)((combined >> bitShift) | (combined << (16 - bitShift)));
+                result[newIdx] = (byte)(rotated & 0xFF);
             }
         }
 
@@ -46,46 +76,24 @@ public class BitManipulation
     
     public static byte[] Xor(byte[] block1, byte[] block2)
     {
-        byte[] result = new byte[block1.Length];
+        if (block1 == null) throw new ArgumentNullException(nameof(block1), "First block cannot be null");
+        if (block2 == null) throw new ArgumentNullException(nameof(block2), "Second block cannot be null");
+        if (block1.Length != block2.Length) 
+            throw new ArgumentException("Blocks must be of equal length");
 
+        byte[] result = new byte[block1.Length];
         for (int i = 0; i < block1.Length; i++)
         {
             result[i] = (byte)(block1[i] ^ block2[i]);
         }
-
         return result;
     }
-
-    
-    public static byte[] RightRotateBytes(byte[] x, int shift, int w)
-    {
-        int byteLen = x.Length;
-        byte[] result = new byte[byteLen];
-
-        shift %= w;
-        if (shift == 0) return (byte[])x.Clone();
-
-        int byteShift = shift / 8;
-        int bitShift = shift % 8;
-
-        for (int i = 0; i < byteLen; i++)
-        {
-            int newIndex = (i - byteShift + byteLen) % byteLen;
-            byte currentByte = x[i];
-            byte prevByte = x[(i - 1 + byteLen) % byteLen];
-
-            result[newIndex] = (byte)(
-                ((currentByte >> bitShift) & 0xFF) | 
-                ((prevByte << (8 - bitShift)) & 0xFF)
-            );
-        }
-
-        return result;
-    }
-
 
     public static byte[] AddBytes(byte[] a, byte[] b)
     {
+        if (a == null) throw new ArgumentNullException(nameof(a), "First array cannot be null");
+        if (b == null) throw new ArgumentNullException(nameof(b), "Second array cannot be null");
+
         int length = Math.Max(a.Length, b.Length);
         byte[] result = new byte[length];
         int carry = 0;
@@ -102,10 +110,12 @@ public class BitManipulation
 
         return result;
     }
-
     
     public static byte[] SubBytes(byte[] a, byte[] b)
     {
+        if (a == null) throw new ArgumentNullException(nameof(a), "First array cannot be null");
+        if (b == null) throw new ArgumentNullException(nameof(b), "Second array cannot be null");
+
         int length = Math.Max(a.Length, b.Length);
         byte[] result = new byte[length];
         int borrow = 0;
@@ -130,15 +140,4 @@ public class BitManipulation
 
         return result;
     }
-
-    
-    public static void PrintBlocks(byte[] block)
-    {
-        foreach (var b in block)
-        {
-            Console.Write(Convert.ToString(b, 2).PadLeft(8, '0') + " ");
-        }
-        Console.WriteLine();
-    }
-
 }
