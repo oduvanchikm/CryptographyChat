@@ -8,10 +8,10 @@ public class KeyExpansion : IKeyExpansion
     private const int b = 16; // Длина ключа в байтах
     private const int u = w / 8; // Длина слова в байтах
     private readonly int c; // Количество слов в ключе
-    private readonly int t; // Длина расширенного ключа (в словах)
+    private readonly int t; // Длина расширенного ключа
 
-    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 }; // 0xB7E15163
-    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 }; // 0x9E3779B9
+    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 }; 
+    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 }; 
 
     public KeyExpansion()
     { 
@@ -42,7 +42,7 @@ public class KeyExpansion : IKeyExpansion
 
         for (int i = 1; i < t; i++)
         {
-            S[i] = new byte[u];  // Инициализация массива перед использованием
+            S[i] = new byte[u];  
             S[i] = BitManipulation.AddBytes(S[i - 1], Qw);
         }
         Console.WriteLine("4");
@@ -70,7 +70,7 @@ public class KeyExpansion : IKeyExpansion
 
             K[jIndex] = BitManipulation.LeftRotateBytes(
                 BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)), 
-                BitConverter.ToInt32(A, 0) % w, // Защита от выхода за границы
+                BitConverter.ToInt32(A, 0) % w, 
                 w
             );
             B = K[jIndex];

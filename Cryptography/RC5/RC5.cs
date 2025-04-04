@@ -9,7 +9,7 @@ public class RC5 : ISymmetricEncryptionAlgorithm
     private const int w = 32;
     private const int r = 12;
     private readonly int t;
-    private const int BlockSize = 8; // 8 bytes = 64 bits
+    private const int BlockSize = 8;
 
     public RC5(byte[] key)
     {
@@ -23,7 +23,6 @@ public class RC5 : ISymmetricEncryptionAlgorithm
         if (data == null) throw new ArgumentNullException(nameof(data));
         if (data.Length == 0) return Array.Empty<byte>();
 
-        // Pad the data if its length is not a multiple of BlockSize
         int paddedLength = data.Length % BlockSize == 0 
             ? data.Length 
             : data.Length + (BlockSize - data.Length % BlockSize);
