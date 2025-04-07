@@ -70,8 +70,7 @@ public class KeyExpansion : IKeyExpansion
 
             K[jIndex] = BitManipulation.LeftRotateBytes(
                 BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)), 
-                BitConverter.ToInt32(A, 0) % w, 
-                w
+                BitConverter.ToInt32(A, 0) % w, w
             );
             B = K[jIndex];
             Console.WriteLine("7");

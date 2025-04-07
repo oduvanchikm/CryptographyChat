@@ -29,6 +29,7 @@ public class ChatService : IChatService
             .ThenInclude(cu => cu.User)
             .FirstOrDefaultAsync(c => c.Id == id);
     }
+    
 
     public async Task<Chats> CreateChatAsync(int creatorId, int participantId, string algorithm)
     {

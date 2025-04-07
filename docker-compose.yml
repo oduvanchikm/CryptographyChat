@@ -1,6 +1,17 @@
+networks:
+  securechat_network:
+    driver: bridge
+
 services:
   securechat.server:
+    networks:
+      - securechat_network
     image: securechat-server
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5078/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     volumes:
       - aspnet-data-protection-keys:/root/.aspnet/DataProtection-Keys
     build:
@@ -35,6 +46,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   zookeeper:
+    networks:
+      - securechat_network
     image: confluentinc/cp-zookeeper:latest
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -49,21 +62,26 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:latest
-    depends_on:
-      - zookeeper
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "kafka:9092" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    hostname: kafka
+    container_name: kafka
+    networks:
+      securechat_network:
+        aliases:
+          - kafka.local
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9097
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     ports:
       - "9097:9092"
-    healthcheck:
-      test: [ "CMD", "kafka-topics", "--list", "--bootstrap-server", "kafka:9092" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:

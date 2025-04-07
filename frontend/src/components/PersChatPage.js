@@ -15,14 +15,12 @@ function PersChatPage() {
             try {
                 setIsLoading(true);
 
-                // Загрузка информации о чате
                 const chatResponse = await fetch(`http://localhost:5078/api/chat/${chatId}`, {
                     credentials: 'include'
                 });
                 const chatData = await chatResponse.json();
                 setChatInfo(chatData);
 
-                // Загрузка сообщений
                 const messagesResponse = await fetch(`http://localhost:5078/api/chat/${chatId}/messages`, {
                     credentials: 'include'
                 });
@@ -48,7 +46,6 @@ function PersChatPage() {
             });
 
             setNewMessage('');
-            // Обновляем сообщения
             const response = await fetch(`http://localhost:5078/api/chat/${chatId}/messages`, {
                 credentials: 'include'
             });

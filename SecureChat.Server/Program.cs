@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using Confluent.Kafka;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -29,23 +30,44 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<IChatService, ChatService>();
 
-builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(_ =>
-    new ProducerBuilder<int, ChatMessageEvent>(new ProducerConfig
-        {
-            BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
-            CompressionType = CompressionType.Gzip,
-            Acks = Acks.All
-        })
+builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
+{
+    var config = new ProducerConfig
+    {
+        BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
+        ClientId = Dns.GetHostName(),
+        Acks = Acks.All,
+        MessageTimeoutMs = 30000,
+        RequestTimeoutMs = 10000,
+        RetryBackoffMs = 1000,
+        SocketTimeoutMs = 60000,
+        BrokerAddressFamily = BrokerAddressFamily.V4,
+        EnableDeliveryReports = true,
+        
+        TransactionalId = "secure-chat-producer-1"
+    };
+    
+    var producer = new ProducerBuilder<int, ChatMessageEvent>(config)
         .SetValueSerializer(new KafkaProducer.JsonSerializer<ChatMessageEvent>())
-        .Build());
+        .Build();
+
+    producer.InitTransactions(TimeSpan.FromSeconds(10));
+    return producer;
+});
 
 builder.Services.AddSingleton<IConsumer<int, ChatMessageEvent>>(_ =>
     new ConsumerBuilder<int, ChatMessageEvent>(new ConsumerConfig
         {
             BootstrapServers = builder.Configuration["Kafka:BootstrapServers"],
-            GroupId = "chat-service-group",
+            GroupId = builder.Configuration["Kafka:GroupId"],
             AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false
+            EnableAutoCommit = false,
+            EnableAutoOffsetStore = false,
+            SocketTimeoutMs = 60000,
+            SessionTimeoutMs = 30000,
+            MaxPollIntervalMs = 300000,
+            BrokerAddressFamily = BrokerAddressFamily.V4,
+            AllowAutoCreateTopics = true
         })
         .SetValueDeserializer(new KafkaProducer.JsonDeserializer<ChatMessageEvent>())
         .Build());
