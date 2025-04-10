@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, {useEffect, useState} from 'react';
+import {Link} from 'react-router-dom';
 import './ChatsPage.css';
 
 function ChatsPage() {
@@ -8,7 +8,6 @@ function ChatsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Функция для поиска пользователей
     const searchUsers = async (query) => {
         if (!query.trim()) {
             setUsers([]);
@@ -22,10 +21,9 @@ function ChatsPage() {
             const response = await fetch(
                 `http://localhost:5078/api/chats/users?search=${encodeURIComponent(query)}`,
                 {
-                    credentials: 'include',  // Убедимся, что куки отправляются с запросом
+                    credentials: 'include', 
                     headers: {
                         'Content-Type': 'application/json',
-                        // Мы больше не передаем Bearer токен
                     }
                 }
             );
@@ -37,7 +35,7 @@ function ChatsPage() {
             const data = await response.json();
             console.log(data);
 
-            
+
             setUsers(data);
         } catch (err) {
             setError(err.message);

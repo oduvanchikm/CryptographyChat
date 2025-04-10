@@ -22,18 +22,19 @@ public class AuthController : ControllerBase
         _dbContextFactory = dbContextFactory;
         _logger = logger;
     }
-    
+
     [HttpPost("register")]
     public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest registerRequest)
     {
         await using var context = _dbContextFactory.CreateDbContext();
-        
+
         _logger.LogInformation("[ RegisterController ] : Start registration method");
 
         try
         {
-            _logger.LogInformation("[ RegisterController ] : Email " + registerRequest.Email + ", Password " + registerRequest.Password);
-        
+            _logger.LogInformation("[ RegisterController ] : Email " + registerRequest.Email + ", Password " +
+                                   registerRequest.Password);
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
@@ -44,15 +45,15 @@ public class AuthController : ControllerBase
                 _logger.LogInformation("[ RegisterController ] : Email is already taken");
                 return BadRequest("Email is already taken");
             }
-        
+
             string email = registerRequest.Email;
             string password = registerRequest.Password;
             string username = registerRequest.Username;
-        
+
             Console.WriteLine(email);
             Console.WriteLine(email);
             Console.WriteLine(username);
-        
+
             var passwordHash = PasswordHelper.HashPassword(password);
 
             var newUser = new User
@@ -64,7 +65,7 @@ public class AuthController : ControllerBase
 
             context.Users.Add(newUser);
             await context.SaveChangesAsync();
-        
+
             _logger.LogInformation("[ RegisterController ] : Registration Successful");
             return Ok("Registration Successful");
         }
@@ -79,15 +80,16 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> LoginAsync([FromBody] LoginRequest loginRequest)
     {
         await using var context = _dbContextFactory.CreateDbContext();
-        
+
         _logger.LogInformation("[ LoginController ] : Start login method");
-        _logger.LogInformation("[ LoginController ] : Email " + loginRequest.Email + ", Password " + loginRequest.Password);
-    
+        _logger.LogInformation("[ LoginController ] : Email " + loginRequest.Email + ", Password " +
+                               loginRequest.Password);
+
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        
+
         var user = await context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
 
         if (user == null || user.PasswordHash != PasswordHelper.HashPassword(loginRequest.Password))
@@ -95,7 +97,7 @@ public class AuthController : ControllerBase
             _logger.LogWarning("[ LoginController ] : Authentication failed: Invalid email or password.");
             return Unauthorized();
         }
-        
+
         bool isPasswordValid = user.PasswordHash == PasswordHelper.HashPassword(loginRequest.Password);
 
         if (!isPasswordValid)
@@ -103,7 +105,7 @@ public class AuthController : ControllerBase
             _logger.LogWarning("[ LoginController ] : Authentication failed: Invalid password.");
             return Unauthorized();
         }
-        
+
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -124,9 +126,10 @@ public class AuthController : ControllerBase
         );
 
         _logger.LogInformation("[ LoginController ] : User logged in");
-        
-        return Ok(new { 
-            message = "Login Successful", 
+
+        return Ok(new
+        {
+            message = "Login Successful",
             username = user.Username,
             userId = user.Id
         });

@@ -28,7 +28,7 @@ function LoginPage() {
         try {
             const response = await fetch('http://localhost:5078/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
                 body: JSON.stringify(formData),
             });
@@ -41,14 +41,14 @@ function LoginPage() {
 
             navigate('/chats');
         } catch (error) {
-            setErrors({ api: error.message });
+            setErrors({api: error.message});
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData({...formData, [e.target.name]: e.target.value});
     };
 
     return (

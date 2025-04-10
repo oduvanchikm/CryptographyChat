@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, {useState, useEffect} from 'react';
+import {useParams, useNavigate} from 'react-router-dom';
 import './PersChatPage.css';
 
 function PersChatPage() {
-    const { chatId } = useParams();
+    const {chatId} = useParams();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [chatInfo, setChatInfo] = useState(null);
@@ -40,9 +40,9 @@ function PersChatPage() {
         try {
             await fetch(`http://localhost:5078/api/chat/${chatId}/messages`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
-                body: JSON.stringify({ encryptedContent: newMessage })
+                body: JSON.stringify({encryptedContent: newMessage})
             });
 
             setNewMessage('');
@@ -65,7 +65,7 @@ function PersChatPage() {
                 </button>
                 {chatInfo && (
                     <div className="user-info">
-                        <img src={chatInfo.Avatar} alt={chatInfo.Username} className="avatar" />
+                        <img src={chatInfo.Avatar} alt={chatInfo.Username} className="avatar"/>
                         <h2>{chatInfo.Username}</h2>
                     </div>
                 )}
@@ -73,10 +73,11 @@ function PersChatPage() {
 
             <div className="messages-container">
                 {messages.map((message, index) => (
-                    <div key={index} className={`message ${message.senderId === chatInfo?.UserId ? 'received' : 'sent'}`}>
+                    <div key={index}
+                         className={`message ${message.senderId === chatInfo?.UserId ? 'received' : 'sent'}`}>
                         <div className="message-content">{message.encryptedContent}</div>
                         <div className="message-time">
-                            {new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(message.sentAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                         </div>
                     </div>
                 ))}

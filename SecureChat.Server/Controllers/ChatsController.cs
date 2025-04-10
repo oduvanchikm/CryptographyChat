@@ -27,9 +27,9 @@ public class ChatsController : ControllerBase
         try
         {
             int userId = GetCurrentUserId();
-        
+
             await using var context = _dbContextFactory.CreateDbContext();
-        
+
             var query = context.Users
                 .Where(u => u.Id != userId);
 
@@ -41,7 +41,7 @@ public class ChatsController : ControllerBase
 
             var users = await query
                 .OrderBy(u => u.Username)
-                .Select(u => new 
+                .Select(u => new
                 {
                     id = u.Id,
                     username = u.Username
@@ -63,7 +63,7 @@ public class ChatsController : ControllerBase
     {
         _logger.LogInformation($"User.Identity.IsAuthenticated: {User.Identity?.IsAuthenticated}");
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-    
+
         if (userIdClaim == null)
         {
             _logger.LogError("User ID not found in claims!");
@@ -75,7 +75,6 @@ public class ChatsController : ControllerBase
     }
 
 
-    
     // [HttpGet("userschats")]
     // [ProducesResponseType(StatusCodes.Status200OK)]
     // [ProducesResponseType(StatusCodes.Status401Unauthorized)]

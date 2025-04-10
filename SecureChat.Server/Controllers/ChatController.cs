@@ -27,7 +27,7 @@ public class ChatController : ControllerBase
         _dbContextFactory = dbContextFactory;
         _logger = logger;
     }
-    
+
     [HttpPost("create")]
     public async Task<IActionResult> CreateChat([FromBody] CreateChatRequest request)
     {
@@ -61,20 +61,22 @@ public class ChatController : ControllerBase
         var otherUser = chat.ChatUser.First(cu => cu.UserId != currentUserId).User;
         _logger.LogInformation("GetChatInfo4");
 
-        return Ok(new {
+        return Ok(new
+        {
             ChatId = chat.Id,
             OtherUserId = otherUser.Id,
             Username = otherUser.Username,
             Avatar = $"https://i.pravatar.cc/150?u={otherUser.Id}"
         });
     }
-    
+
     private int GetCurrentUserId()
     {
         if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
         {
             return userId;
         }
+
         throw new InvalidOperationException("Invalid user ID in claims");
     }
 

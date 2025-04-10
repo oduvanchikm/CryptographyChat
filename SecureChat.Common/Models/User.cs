@@ -6,10 +6,10 @@ public class User
     public string Email { get; set; }
     public string PasswordHash { get; set; }
     public string Username { get; set; }
-    
+
     public DateTimeOffset CreatedAt { get; set; } = DateTime.UtcNow;
-    
-    public DateTimeOffset LastLogin { get; set; } 
+
+    public DateTimeOffset LastLogin { get; set; }
     public IEnumerable<ChatUser> ChatUser { get; set; }
     public IEnumerable<DhPublicKey> DhPublicKey { get; set; }
 }

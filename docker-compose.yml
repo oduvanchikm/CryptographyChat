@@ -8,37 +8,26 @@ services:
     networks:
       - securechat_network
     image: securechat-server
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:5078/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: localhost:9097
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: admin
-      RABBITMQ_PASSWORD: password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     volumes:
       - aspnet-data-protection-keys:/root/.aspnet/DataProtection-Keys
     build:
       context: .
       dockerfile: SecureChat.Server/Dockerfile
     ports:
-      - "5001:5000"
-      - "5002:5001"
+      - "5078:8080"
     depends_on:
       - securechat.database
       - kafka
-      - rabbitmq
 
   frontend:
     image: frontend
     build:
-      context: .  # Путь к вашему React-проекту
+      context: . 
       dockerfile: frontend/Dockerfile
     ports:
-      - "3000:80"  # Прокси на 80 порт внутри контейнера для Nginx
+      - "3000:80"
     depends_on:
       - securechat.server
     networks:
@@ -56,24 +45,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - securechat_network
-  
-  rabbitmq:
-    image: rabbitmq:3-management
-    hostname: rabbitmq
-    container_name: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: password
-    ports:
-      - "5672:5672"  # AMQP порт
-      - "15672:15672"  # Web-интерфейс
-    networks:
-      - securechat_network
-    healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -88,11 +59,11 @@ services:
   kafka:
     image: confluentinc/cp-kafka:latest
     hostname: kafka
-    container_name: kafka
     environment:
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9097
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://host.docker.internal:9097
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9097
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     ports:

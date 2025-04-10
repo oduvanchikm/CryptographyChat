@@ -17,7 +17,7 @@ public class SecureChatDbContext(DbContextOptions<SecureChatDbContext> options) 
         modelBuilder.ApplyConfiguration(new ChatUserConfiguration());
         modelBuilder.ApplyConfiguration(new ChatsConfiguration());
         modelBuilder.ApplyConfiguration(new DhPublicKeyConfiguration());
-        
+
         base.OnModelCreating(modelBuilder);
     }
 }

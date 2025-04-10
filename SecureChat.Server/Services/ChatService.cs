@@ -14,7 +14,7 @@ public class ChatService : IChatService
     private readonly IProducer<int, ChatMessageEvent> _producer;
     private readonly IConsumer<int, ChatMessageEvent> _consumer;
 
-    public ChatService(SecureChatDbContext dbContext, IProducer<int, ChatMessageEvent> producer, 
+    public ChatService(SecureChatDbContext dbContext, IProducer<int, ChatMessageEvent> producer,
         IConsumer<int, ChatMessageEvent> consumer)
     {
         _dbContext = dbContext;
@@ -29,7 +29,7 @@ public class ChatService : IChatService
             .ThenInclude(cu => cu.User)
             .FirstOrDefaultAsync(c => c.Id == id);
     }
-    
+
 
     public async Task<Chats> CreateChatAsync(int creatorId, int participantId, string algorithm)
     {

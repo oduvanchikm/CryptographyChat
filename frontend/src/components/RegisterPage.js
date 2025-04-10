@@ -30,7 +30,7 @@ function RegisterPage() {
         try {
             const response = await fetch(' http://localhost:5078/api/auth/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(formData),
             });
 
@@ -42,14 +42,14 @@ function RegisterPage() {
 
             navigate('/login');
         } catch (error) {
-            setErrors({ api: error.message });
+            setErrors({api: error.message});
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData({...formData, [e.target.name]: e.target.value});
     };
 
     return (
@@ -71,7 +71,6 @@ function RegisterPage() {
                         <div className="input-group">
                             <label>Name</label>
                             <input
-                                type="username"
                                 name="username"
                                 value={formData.username}
                                 onChange={handleChange}
