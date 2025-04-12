@@ -3,19 +3,18 @@ using Confluent.Kafka;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using SecureChat.Broker;
+using SecureChat.Broker.Services;
 using SecureChat.Common.Models;
 using SecureChat.Database;
 using SecureChat.Server.Interfaces;
 using SecureChat.Server.Services;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Database
-builder.Services.AddDbContext<SecureChatDbContext>(options =>
+builder.Services.AddDbContextFactory<SecureChatDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-// builder.Services.AddDbContextFactory<SecureChatDbContext>(options =>
-//     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
-//         b => b.MigrationsAssembly("SecureChat.Database")));
 
 // CORS
 builder.Services.AddCors(options =>
@@ -29,15 +28,22 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true));
 });
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetValue<string>("Redis:Connection")));
+
 // Services
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<KafkaProducerService>();
+builder.Services.AddSingleton<KafkaConsumerService>();
+// builder.Services.AddSingleton<WebSocketManager>();
 
 // Kafka Producer
 builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
 {
     var config = new ProducerConfig
     {
-        BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "kafka:9092",
+        BootstrapServers = "kafka:9092",
         ClientId = Dns.GetHostName(),
         Acks = Acks.All,
         MessageTimeoutMs = 30000,
@@ -52,7 +58,7 @@ builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
     };
 
     var producer = new ProducerBuilder<int, ChatMessageEvent>(config)
-        .SetValueSerializer(new KafkaProducer.JsonSerializer<ChatMessageEvent>())
+        .SetValueSerializer(new KafkaSerialization.JsonSerializer<ChatMessageEvent>())
         .SetLogHandler((_, message) =>
             Console.WriteLine($"Kafka Producer: {message.Level} {message.Facility} {message.Message}"))
         .SetErrorHandler((_, error) =>
@@ -66,7 +72,7 @@ builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
 builder.Services.AddSingleton<IConsumer<int, ChatMessageEvent>>(_ =>
     new ConsumerBuilder<int, ChatMessageEvent>(new ConsumerConfig
         {
-            BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "kafka:9092",
+            BootstrapServers = "kafka:9092",
             GroupId = "secure-chat-group",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
@@ -79,7 +85,7 @@ builder.Services.AddSingleton<IConsumer<int, ChatMessageEvent>>(_ =>
             SessionTimeoutMs = 30000,
             MaxPollIntervalMs = 300000
         })
-        .SetValueDeserializer(new KafkaProducer.JsonDeserializer<ChatMessageEvent>())
+        .SetValueDeserializer(new KafkaSerialization.JsonDeserializer<ChatMessageEvent>())
         .SetLogHandler((_, message) =>
             Console.WriteLine($"Kafka Consumer: {message.Level} {message.Facility} {message.Message}"))
         .SetErrorHandler((_, error) =>

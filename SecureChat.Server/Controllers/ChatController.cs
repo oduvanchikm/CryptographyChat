@@ -1,11 +1,14 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SecureChat.Broker.Services;
 using SecureChat.Common.Models;
 using SecureChat.Common.ViewModels;
 using SecureChat.Database;
 using SecureChat.Server.Interfaces;
+using StackExchange.Redis;
 
 namespace SecureChat.Server.Controllers;
 
@@ -15,90 +18,131 @@ namespace SecureChat.Server.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;
+    private readonly IUserService _userService;
     private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
     private readonly ILogger<ChatController> _logger;
+    private readonly IDatabase _redisDb;
+    private readonly IConnectionMultiplexer _redis;
+    private readonly KafkaProducerService _kafkaProducer;
 
     public ChatController(
         IChatService chatService,
         IDbContextFactory<SecureChatDbContext> dbContextFactory,
-        ILogger<ChatController> logger)
+        ILogger<ChatController> logger,
+        IUserService userService,
+        IConnectionMultiplexer redis,
+        KafkaProducerService kafkaProducer)
     {
         _chatService = chatService;
         _dbContextFactory = dbContextFactory;
         _logger = logger;
+        _userService = userService;
+        _redis = redis;
+        _redisDb = redis.GetDatabase();
+        _kafkaProducer = kafkaProducer;
     }
 
     [HttpPost("create")]
     public async Task<IActionResult> CreateChat([FromBody] CreateChatRequest request)
     {
-        _logger.LogInformation("Creating new chat");
+        _logger.LogInformation("[CreateChat] Creating new chat with {0}", request.ParticipantId);
+        _logger.LogInformation("[CreateChat] Creating new chat");
         var currentUserId = GetCurrentUserId();
-        var chat = await _chatService.CreateChatAsync(currentUserId, request.ParticipantId, "RC5");
-        _logger.LogInformation("Creating new chat2");
-        return Ok(new { ChatId = chat.Id });
-    }
-
-    [HttpGet("{chatId}")]
-    public async Task<IActionResult> GetChatInfo(int chatId)
-    {
-        _logger.LogInformation("GetChatInfo1");
+        int participantId = request.ParticipantId;
+        _logger.LogInformation("[CreateChat] Creating new chat");
+        
         await using var context = _dbContextFactory.CreateDbContext();
-        var currentUserId = GetCurrentUserId();
-        _logger.LogInformation("GetChatInfo2");
-
-        var chat = await context.Chat
-            .Include(c => c.ChatUser)
-            .ThenInclude(cu => cu.User)
-            .FirstOrDefaultAsync(c => c.Id == chatId && c.ChatUser.Any(cu => cu.UserId == currentUserId));
-
-        _logger.LogInformation("GetChatInfo3");
-        if (chat == null)
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        
+        try
         {
-            _logger.LogInformation("GetChatInfo3,5");
-            return NotFound();
+            var participantUser = await _userService.GetUserByIdAsync(participantId);
+            if (participantUser == null)
+            {
+                _logger.LogInformation("[CreateChat] error with creating new chat");
+                return NotFound(new { message = "Participant user not found" });
+            }
+
+            _logger.LogInformation("[CreateChat] Creating new chat");
+            
+            var existingChat = await context.Chat
+                .Where(c => c.ChatUser.Count() == 2 &&
+                            c.ChatUser.Any(cu => cu.UserId == currentUserId) &&
+                            c.ChatUser.Any(cu => cu.UserId == participantId))
+                .FirstOrDefaultAsync();
+
+            if (existingChat != null)
+            {
+                return Ok(new { ChatId = existingChat.Id });
+            }
+
+            var chat = await _chatService.CreateChatAsync(currentUserId, participantId, participantUser.Username, "RC5");
+            
+            _logger.LogInformation("[CreateChat] chat id is {0}", chat.Id);
+
+            _logger.LogInformation("[CreateChat] Creating new chat2");
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+            
+            return Ok(new { ChatId = chat.Id });
         }
-
-        var otherUser = chat.ChatUser.First(cu => cu.UserId != currentUserId).User;
-        _logger.LogInformation("GetChatInfo4");
-
-        return Ok(new
+        catch (Exception e)
         {
-            ChatId = chat.Id,
-            OtherUserId = otherUser.Id,
-            Username = otherUser.Username,
-            Avatar = $"https://i.pravatar.cc/150?u={otherUser.Id}"
-        });
+            await transaction.RollbackAsync();
+            _logger.LogError(e, "Error creating chat");
+            return StatusCode(500, new { message = "Error creating chat" });
+        }
     }
-
+    
     private int GetCurrentUserId()
     {
         if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
         {
             return userId;
         }
-
+    
         throw new InvalidOperationException("Invalid user ID in claims");
     }
-
-
-    [HttpPost("{chatId}/messages")]
+    
+    [HttpPost("{chatId}/send")]
     public async Task<IActionResult> SendMessage(int chatId, [FromBody] SendMessageRequest request)
     {
-        _logger.LogInformation("SendMessage1");
-        await _chatService.AddMessageAsync(
-            chatId,
-            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)),
-            request.EncryptedContent);
+        var senderId = GetCurrentUserId();
+
+        if (!await _chatService.IsUserInChatAsync(chatId, senderId))
+            return Forbid();
+
+        var messageEvent = new ChatMessageEvent
+        {
+            ChatId = chatId,
+            SenderId = senderId,
+            EncryptedContent = request.Message,
+            SentAt = DateTime.UtcNow
+        };
+
+        await _kafkaProducer.SendMessage(messageEvent);
+
+        var redisKey = $"chat:{chatId}:messages";
+        var json = JsonSerializer.Serialize(messageEvent);
+        await _redisDb.ListRightPushAsync(redisKey, json);
 
         return Ok();
     }
-
-    [HttpGet("{chatId}/messages")]
-    public async IAsyncEnumerable<ChatMessageEvent> GetMessages(int chatId, CancellationToken ct)
+    
+    [HttpGet("{chatId}/history")]
+    public async Task<IActionResult> GetHistory(int chatId, [FromQuery] int count = 50)
     {
-        await foreach (var message in _chatService.StreamMessagesAsync(chatId, ct))
-        {
-            yield return message;
-        }
+        var userId = GetCurrentUserId();
+
+        if (!await _chatService.IsUserInChatAsync(chatId, userId))
+            return Forbid();
+
+        var messages = await _redisDb.ListRangeAsync($"chat:{chatId}:messages", -count, -1);
+        var messageList = messages
+            .Select(m => JsonSerializer.Deserialize<ChatMessageEvent>(m!))
+            .Where(m => m != null)
+            .ToList();
+
+        return Ok(messageList);
     }
 }

@@ -7,35 +7,42 @@ namespace SecureChat.Server.Services;
 
 public class UserService : IUserService
 {
-    private readonly SecureChatDbContext _dbContext;
+    private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
 
-    public UserService(SecureChatDbContext dbContext)
+    public UserService(IDbContextFactory<SecureChatDbContext> dbContext)
     {
-        _dbContext = dbContext;
+        _dbContextFactory = dbContext;
     }
 
     public async Task<User?> GetUserByIdAsync(int userId)
     {
-        return await _dbContext.Users.FindAsync(userId);
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.Users
+            .FirstOrDefaultAsync(u => u.Id == userId);
     }
 
     public async Task<User?> GetUserByUsernameAsync(string username)
     {
-        return await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.Users
+            .FirstOrDefaultAsync(u => u.Username == username);
     }
 
     public async Task<bool> UserExists(string username)
     {
-        return await _dbContext.Users.AnyAsync(u => u.Username == username);
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.Users.AnyAsync(u => u.Username == username);
     }
 
     public async Task<IEnumerable<User>> SearchUsers(string query, int currentUserId)
     {
-        return await _dbContext.Users.Where(u => u.Username.Contains(query) && u.Id != currentUserId).ToListAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.Users.Where(u => u.Username.Contains(query) && u.Id != currentUserId).ToListAsync();
     }
 
     public async Task AddDhPublicKeyAsync(int userId, int chatId, string publicKey)
     {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
         var key = new DhPublicKey
         {
             UserId = userId,
@@ -45,7 +52,9 @@ public class UserService : IUserService
             ExpiresAt = DateTime.UtcNow.AddHours(24)
         };
 
-        await _dbContext.DhPublicKey.AddAsync(key);
-        await _dbContext.SaveChangesAsync();
+        await context.DhPublicKey.AddAsync(key);
+        await context.SaveChangesAsync();
     }
+
+    
 }

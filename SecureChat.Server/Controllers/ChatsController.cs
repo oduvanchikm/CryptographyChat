@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureChat.Database;
-using SecureChat.Server.Interfaces;
 
 namespace SecureChat.Server.Controllers;
 
@@ -75,56 +74,59 @@ public class ChatsController : ControllerBase
     }
 
 
-    // [HttpGet("userschats")]
-    // [ProducesResponseType(StatusCodes.Status200OK)]
-    // [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    // [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    // public async Task<IActionResult> GetAllChatsAsync([FromQuery] string search = null)
-    // {
-    //     try
-    //     {
-    //         await using var context = _dbContextFactory.CreateDbContext();
-    //         var currentUserId = GetCurrentUserId();
-    //
-    //         var chatsQuery = context.ChatUser
-    //             .Include(cu => cu.Chat)
-    //             .ThenInclude(c => c.ChatUser)
-    //             .ThenInclude(u => u.User)
-    //             .Where(cu => cu.UserId == currentUserId)
-    //             .Select(cu => new
-    //             {
-    //                 ChatId = cu.Chat.Id,
-    //                 OtherUser = cu.Chat.ChatUser
-    //                     .FirstOrDefault(u => u.UserId != currentUserId).User
-    //             })
-    //             .AsQueryable();
-    //
-    //         if (!string.IsNullOrWhiteSpace(search))
-    //         {
-    //             chatsQuery = chatsQuery.Where(x => 
-    //                 EF.Functions.Like(x.OtherUser.Username, $"%{search}%"));
-    //         }
-    //
-    //         var chats = await chatsQuery
-    //             .Select(x => new
-    //             {
-    //                 id = x.ChatId,
-    //                 name = x.OtherUser.Username,
-    //                 avatar = $"https://i.pravatar.cc/150?u={x.OtherUser.Id}"
-    //             })
-    //             .ToListAsync();
-    //
-    //         return Ok(chats);
-    //     }
-    //     catch (InvalidOperationException ex)
-    //     {
-    //         _logger.LogWarning(ex, "Authentication error while getting chats");
-    //         return Unauthorized(new { Message = "Authentication required" });
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         _logger.LogError(ex, "Error while getting chats");
-    //         return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred" });
-    //     }
-    // }
+    [HttpGet("userschats")]
+    public async Task<IActionResult> GetAllChatsAsync([FromQuery] string search = null)
+    {
+        try
+        {
+            await using var context = _dbContextFactory.CreateDbContext();
+            var currentUserId = GetCurrentUserId();
+
+            var chats = await context.ChatUser
+                .Include(cu => cu.Chat)
+                .ThenInclude(c => c.ChatUser)
+                .ThenInclude(cu => cu.User)
+                .Where(cu => cu.UserId == currentUserId)
+                .Select(cu => new
+                {
+                    ChatId = cu.ChatId,
+                    OtherUsers = cu.Chat.ChatUser
+                        .Where(x => x.UserId != currentUserId)
+                        .Select(x => new
+                        {
+                            x.User.Id,
+                            x.User.Username
+                        })
+                })
+                .ToListAsync();
+
+            var result = chats
+                .Select(c => new
+                {
+                    id = c.ChatId,
+                    name = string.Join(", ", c.OtherUsers.Select(u => u.Username)),
+                    avatar = c.OtherUsers.Any()
+                        ? $"https://i.pravatar.cc/150?u={c.OtherUsers.First().Id}"
+                        : "https://i.pravatar.cc/150?u=default"
+                })
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                result = result.Where(x => EF.Functions.Like(x.name, $"%{search}%"));
+            }
+
+            return Ok(result.ToList());
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Authentication error while getting chats");
+            return Unauthorized(new { Message = "Authentication required" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while getting chats");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred" });
+        }
+    }
 }

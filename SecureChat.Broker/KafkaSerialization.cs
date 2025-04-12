@@ -3,7 +3,7 @@ using Confluent.Kafka;
 
 namespace SecureChat.Broker;
 
-public class KafkaProducer
+public class KafkaSerialization
 {
     public class JsonSerializer<T> : ISerializer<T>
     {

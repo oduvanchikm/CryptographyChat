@@ -6,47 +6,41 @@ function PersChatPage() {
     const {chatId} = useParams();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
-    const [chatInfo, setChatInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const loadChatData = async () => {
+        const loadMessages = async () => {
+            setIsLoading(true);
             try {
-                setIsLoading(true);
-
-                const chatResponse = await fetch(`http://localhost:5078/api/chat/${chatId}`, {
+                const response = await fetch(`http://localhost:5078/api/chat/${chatId}/history?count=50`, {
                     credentials: 'include'
                 });
-                const chatData = await chatResponse.json();
-                setChatInfo(chatData);
-
-                const messagesResponse = await fetch(`http://localhost:5078/api/chat/${chatId}/messages`, {
-                    credentials: 'include'
-                });
-                const messagesData = await messagesResponse.json();
-                setMessages(messagesData);
+                const data = await response.json();
+                setMessages(data);
+            } catch (error) {
+                console.error('Error fetching chat history:', error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadChatData();
+        loadMessages();
     }, [chatId]);
 
     const handleSendMessage = async () => {
         if (!newMessage.trim()) return;
 
         try {
-            await fetch(`http://localhost:5078/api/chat/${chatId}/messages`, {
+            await fetch(`http://localhost:5078/api/chat/${chatId}/send`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
-                body: JSON.stringify({encryptedContent: newMessage})
+                body: JSON.stringify({message: newMessage})
             });
 
             setNewMessage('');
-            const response = await fetch(`http://localhost:5078/api/chat/${chatId}/messages`, {
+            const response = await fetch(`http://localhost:5078/api/chat/${chatId}/history?count=50`, {
                 credentials: 'include'
             });
             setMessages(await response.json());
@@ -60,21 +54,14 @@ function PersChatPage() {
     return (
         <div className="pers-chat-container">
             <div className="chat-header">
-                <button onClick={() => navigate(-1)} className="back-button">
-                    ← Back
-                </button>
-                {chatInfo && (
-                    <div className="user-info">
-                        <img src={chatInfo.Avatar} alt={chatInfo.Username} className="avatar"/>
-                        <h2>{chatInfo.Username}</h2>
-                    </div>
-                )}
+                <button onClick={() => navigate(-1)} className="back-button">← Back</button>
+                <h2>Chat #{chatId}</h2>
             </div>
 
             <div className="messages-container">
                 {messages.map((message, index) => (
                     <div key={index}
-                         className={`message ${message.senderId === chatInfo?.UserId ? 'received' : 'sent'}`}>
+                         className={`message ${message.senderId === message.currentUserId ? 'sent' : 'received'}`}>
                         <div className="message-content">{message.encryptedContent}</div>
                         <div className="message-time">
                             {new Date(message.sentAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
@@ -89,7 +76,7 @@ function PersChatPage() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 />
                 <button onClick={handleSendMessage}>Send</button>
             </div>
