@@ -15,8 +15,6 @@ function PersChatPage() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const navigate = useNavigate();
 
-
-
     useEffect(() => {
         const fetchCurrentUser = async () => {
             const response = await fetch('http://localhost:5078/api/auth/me', {
@@ -85,7 +83,7 @@ function PersChatPage() {
             const encryptedMessage = Array.from(newMessage)
                 .map(char =>
                     String.fromCharCode(char.charCodeAt(0) ^ Number(sharedSecret % 255n)))
-                        .join('');
+                .join('');
 
             await fetch(`http://localhost:5078/api/chat/${chatId}/send`, {
                 method: 'POST',
@@ -109,7 +107,7 @@ function PersChatPage() {
         return Array.from(encrypted)
             .map(char =>
                 String.fromCharCode(char.charCodeAt(0) ^ Number(sharedSecret % 255n)))
-                    .join('');
+            .join('');
     };
 
     if (isLoading) return <div className="loading">Loading chat...</div>;

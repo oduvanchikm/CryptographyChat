@@ -121,76 +121,93 @@ function ChatsPage() {
     };
 
     return (
-        <div className="telegram-style-container">
-            <div className="telegram-header">
-                <h1>SecureChat</h1>
-                <div className={`search-container ${isSearchFocused ? 'focused' : ''}`}>
-                    <input
-                        type="text"
-                        placeholder="Поиск"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => setIsSearchFocused(true)}
-                        onBlur={() => setIsSearchFocused(false)}
-                        disabled={isLoading || creatingChat}
-                    />
-                    {isLoading && (
-                        <div className="search-loading">
-                            <div className="spinner"></div>
-                        </div>
-                    )}
+        <div className="app-container">
+            <div className="app-header">
+                <div className="header-content">
+                    <h1 className="app-title">SecureChat</h1>
+                    <div className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}>
+                        <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setIsSearchFocused(false)}
+                            disabled={isLoading || creatingChat}
+                            className="search-input"
+                        />
+                        {isLoading && (
+                            <div className="search-loader">
+                                <div className="loader"></div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            <div className="telegram-content" ref={chatsContainerRef}>
+            <div className="app-content" ref={chatsContainerRef}>
                 {isSearchFocused || searchQuery.trim() ? (
-                    <div className="search-results">
-                        <h2>Result</h2>
+                    <div className="search-section">
+                        <h2 className="section-title">Search Results</h2>
                         {users.length > 0 ? (
-                            <div className="users-list">
+                            <ul className="users-grid">
                                 {users.map(user => (
-                                    <div key={user.id} className="user-item" onClick={() => handleUserClick(user.id)}>
-                                        <div className="avatar-container">
+                                    <li key={user.id} className="user-card" onClick={() => handleUserClick(user.id)}>
+                                        <div className="user-avatar">
                                             <img
                                                 src={`https://i.pravatar.cc/150?u=${user.id}`}
                                                 alt={user.username}
-                                                className="avatar"
                                             />
                                         </div>
-                                        <div className="user-info">
-                                            <h3>{user.username}</h3>
-                                            <span className="user-id">ID: {user.id}</span>
+                                        <div className="user-details">
+                                            <h3 className="user-name">{user.username}</h3>
+                                            <p className="user-meta">ID: {user.id}</p>
                                         </div>
-                                    </div>
+                                    </li>
                                 ))}
-                            </div>
+                            </ul>
                         ) : (
-                            <div className="no-results">
-                                {searchQuery.trim() ? 'User not found' : 'Start finding'}
+                            <div className="empty-state">
+                                <p>{searchQuery.trim() ? 'No users found' : 'Start typing to search'}</p>
                             </div>
                         )}
                     </div>
                 ) : (
-                    <div className="chats-list">
-                        <h2>Chats</h2>
+                    <div className="chats-section">
+                        <h2 className="section-title">Your Chats</h2>
                         {chats.length > 0 ? (
-                            chats.map(chat => (
-                                <div key={chat.id} className="chat-item" onClick={() => handleChatClick(chat.id)}>
-                                    <div className="avatar-container">
-                                        <img src={chat.avatar} alt={chat.name} className="avatar" />
-                                    </div>
-                                    <div className="chat-info">
-                                        <div className="chat-header">
-                                            <h3>{chat.name}</h3>
-                                            <span className="chat-time">{new Date(chat.lastMessageTime).toLocaleTimeString()}</span>
+                            <ul className="chats-list">
+                                {chats.map(chat => (
+                                    <li key={chat.id} className="chat-item" onClick={() => handleChatClick(chat.id)}>
+                                        <div className="chat-avatar">
+                                            <img src={chat.avatar} alt={chat.name} />
                                         </div>
-                                        <p className="chat-preview">{chat.lastMessage || 'No messages'}</p>
-                                    </div>
-                                </div>
-                            ))
+                                        <div className="chat-info">
+                                            <div className="chat-header">
+                                                <h3 className="chat-name">{chat.name}</h3>
+                                                <span className="chat-time">
+                                                    {new Date(chat.lastMessageTime).toLocaleTimeString([], {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <p className="chat-preview">
+                                                {chat.lastMessage || 'No messages yet'}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
                         ) : (
-                            <div className="no-chats">
-                                <p>No chats</p>
+                            <div className="empty-state">
+                                <p>You don't have any chats yet</p>
+                                <button
+                                    className="new-chat-btn"
+                                    onClick={() => setIsSearchFocused(true)}
+                                >
+                                    Start New Chat
+                                </button>
                             </div>
                         )}
                     </div>
@@ -198,9 +215,14 @@ function ChatsPage() {
             </div>
 
             {error && (
-                <div className="error-message">
-                    {error}
-                    <button onClick={() => setError(null)}>×</button>
+                <div className="error-notification">
+                    <p>{error}</p>
+                    <button
+                        className="close-error"
+                        onClick={() => setError(null)}
+                    >
+                        &times;
+                    </button>
                 </div>
             )}
         </div>

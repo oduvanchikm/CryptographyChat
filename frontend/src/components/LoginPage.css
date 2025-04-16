@@ -1,181 +1,124 @@
-/* RegisterPage.css */
-
 .home-container {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
-    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #fcc2d7 0%, #f8a5c2 100%);
 }
 
 .auth-container {
     display: flex;
-    flex: 1;
     justify-content: center;
     align-items: center;
+    flex-grow: 1;
     padding: 2rem;
 }
 
-.register-container {
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+.login-container, .register-container {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
     padding: 2.5rem;
     width: 100%;
-    max-width: 400px;
-    animation: fadeIn 0.3s ease-in-out;
+    max-width: 450px;
+    box-shadow: 0 10px 30px rgba(214, 51, 132, 0.2);
+    animation: fadeIn 0.5s ease-out;
 }
 
 .info-container {
-    margin-left: 4rem;
-    max-width: 400px;
-    color: #333;
-}
-
-.info-container h2 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    background: linear-gradient(90deg, #9c27b0, #e91e63);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    display: none;
 }
 
 h1 {
-    color: #7b1fa2;
-    font-size: 1.8rem;
-    margin-bottom: 1.5rem;
+    color: var(--primary-dark);
     text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2rem;
+    font-weight: 600;
 }
 
 .input-group {
     margin-bottom: 1.5rem;
 }
 
-.input-group label {
+label {
     display: block;
     margin-bottom: 0.5rem;
-    color: #7b1fa2;
+    color: var(--primary-dark);
     font-weight: 500;
 }
 
-.input-group input {
+input {
     width: 100%;
     padding: 0.8rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
     font-size: 1rem;
-    transition: all 0.2s;
-    background-color: #f9f9f9;
+    transition: all 0.3s;
 }
 
-.input-group input:focus {
+input:focus {
+    border-color: var(--primary-light);
     outline: none;
-    border-color: #9c27b0;
-    box-shadow: 0 0 0 3px rgba(156, 39, 176, 0.2);
+    box-shadow: 0 0 0 3px rgba(214, 51, 132, 0.2);
 }
 
 .submit-button {
     width: 100%;
-    padding: 0.8rem;
-    background: linear-gradient(90deg, #9c27b0, #e91e63);
+    padding: 1rem;
+    background-color: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 0.5rem;
+    transition: all 0.3s;
+    margin-top: 1rem;
 }
 
 .submit-button:hover {
-    background: linear-gradient(90deg, #8e24aa, #d81b60);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(214, 51, 132, 0.3);
 }
 
 .submit-button:disabled {
-    background: #ccc;
+    background-color: var(--border-color);
     cursor: not-allowed;
-    transform: none;
 }
 
 p {
     text-align: center;
     margin-top: 1.5rem;
-    color: #666;
+    color: var(--text-light);
 }
 
 a {
-    color: #9c27b0;
+    color: var(--primary-color);
     text-decoration: none;
     font-weight: 500;
 }
 
 a:hover {
     text-decoration: underline;
-    color: #7b1fa2;
 }
 
 .button-container {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
+    padding: 1rem;
+    text-align: center;
 }
 
 .action-button {
-    padding: 0.5rem 1rem;
-    background-color: #f3e5f5;
-    color: #9c27b0;
-    border: 1px solid #9c27b0;
-    border-radius: 6px;
+    padding: 0.6rem 1.5rem;
+    background-color: white;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    border-radius: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .action-button:hover {
-    background-color: #e1bee7;
-}
-
-/* Анимации */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
-    .auth-container {
-        flex-direction: column;
-        padding: 1rem;
-    }
-
-    .info-container {
-        margin-left: 0;
-        margin-top: 2rem;
-        text-align: center;
-    }
-
-    .register-container {
-        padding: 1.5rem;
-    }
-}
-
-.error {
-    color: #e91e63;
-    font-size: 0.8rem;
-    margin-top: 0.25rem;
-}
-
-.api-error {
-    color: #e91e63;
-    text-align: center;
-    margin: 1rem 0;
+    background-color: var(--primary-color);
+    color: white;
 }
