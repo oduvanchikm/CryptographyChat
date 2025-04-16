@@ -45,11 +45,13 @@ public class ChatController : ControllerBase
     [HttpPost("create")]
     public async Task<IActionResult> CreateChat([FromBody] CreateChatRequest request)
     {
+        _logger.LogInformation("PUBLIC KEY: ");
+        _logger.LogInformation(JsonSerializer.Serialize(request));
         _logger.LogInformation("[CreateChat] Creating new chat with {0}", request.ParticipantId);
-        _logger.LogInformation("[CreateChat] Creating new chat");
+        _logger.LogInformation("[CreateChat] Creating new chat1");
         var currentUserId = GetCurrentUserId();
         int participantId = request.ParticipantId;
-        _logger.LogInformation("[CreateChat] Creating new chat");
+        _logger.LogInformation("[CreateChat] Creating new chat2");
         
         await using var context = _dbContextFactory.CreateDbContext();
         await using var transaction = await context.Database.BeginTransactionAsync();
@@ -63,7 +65,7 @@ public class ChatController : ControllerBase
                 return NotFound(new { message = "Participant user not found" });
             }
 
-            _logger.LogInformation("[CreateChat] Creating new chat");
+            _logger.LogInformation("[CreateChat] Creating new chat3");
             
             var existingChat = await context.Chat
                 .Where(c => c.ChatUser.Count() == 2 &&
@@ -73,18 +75,27 @@ public class ChatController : ControllerBase
 
             if (existingChat != null)
             {
+                _logger.LogInformation("[CreateChat] Chat already exists");
                 return Ok(new { ChatId = existingChat.Id });
             }
 
-            var chat = await _chatService.CreateChatAsync(currentUserId, participantId, participantUser.Username, "RC5");
+            var chat = await _chatService.CreateChatAsync(currentUserId, 
+                participantId, participantUser.Username, "RC5", request.PublicKey);
             
-            _logger.LogInformation("[CreateChat] chat id is {0}", chat.Id);
-
-            _logger.LogInformation("[CreateChat] Creating new chat2");
+            _logger.LogInformation("[CreateChat] Creating new chat4");
+            
+            await _userService.AddDhPublicKeyAsync(currentUserId, chat.Id, request.PublicKey);
+            
+            Console.WriteLine($"[CreateChat] PUBLIC KEY {request.PublicKey}");
+            _logger.LogInformation($"[CreateChat] PUBLIC KEY {request.PublicKey}");
+            
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
-            
-            return Ok(new { ChatId = chat.Id });
+
+            return Ok(new { 
+                ChatId = chat.Id,
+                OtherPublicKey = (await _userService.GetParticipantPublicKeyAsync(chat.Id, currentUserId)) ?? string.Empty
+            });
         }
         catch (Exception e)
         {
@@ -135,14 +146,76 @@ public class ChatController : ControllerBase
         var userId = GetCurrentUserId();
 
         if (!await _chatService.IsUserInChatAsync(chatId, userId))
+        {
             return Forbid();
+        }
 
         var messages = await _redisDb.ListRangeAsync($"chat:{chatId}:messages", -count, -1);
+        
         var messageList = messages
             .Select(m => JsonSerializer.Deserialize<ChatMessageEvent>(m!))
             .Where(m => m != null)
             .ToList();
+        
+        var enrichedMessages = new List<MessageWithSenderInfo>();
+        
+        foreach (var message in messageList)
+        {
+            var senderUser = await _userService.GetUserByIdAsync(message.SenderId);
 
-        return Ok(messageList);
+            enrichedMessages.Add(new MessageWithSenderInfo
+            {
+                SenderId = message.SenderId,
+                EncryptedContent = message.EncryptedContent,
+                SentAt = message.SentAt,
+                SenderUsername = senderUser?.Username ?? "Unknown",
+                IsCurrentUser = message.SenderId == userId
+            });
+        }
+
+        return Ok(enrichedMessages);
+    }
+    
+    [HttpGet("{chatId}/participantKey")]
+    public async Task<IActionResult> GetParticipantKey(int chatId)
+    {
+        _logger.LogInformation("[GetParticipantKey] Getting participant key");
+        var userId = GetCurrentUserId();
+        _logger.LogInformation($"[GetParticipantKey] {userId} and {chatId}");
+        if (!await _chatService.IsUserInChatAsync(chatId, userId))
+        {
+            _logger.LogInformation("[GetParticipantKey] error with creating participant key1");
+            return Forbid();
+        }
+        _logger.LogInformation($"[GetParticipantKey] {userId} and {chatId}");
+
+        string key = null;
+
+        try
+        {
+            key = await _userService.GetParticipantPublicKeyAsync(chatId, userId);
+            return Ok(new { publicKey = key });
+        }
+        catch (KeyNotFoundException)
+        {
+            _logger.LogInformation("[GetParticipantKey] Public key not found");
+            return NotFound(new { message = "Public key not found" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetParticipantKey] Unexpected error");
+            return StatusCode(500, new { message = "Internal server error" });
+        }
+    }
+    
+    [HttpPost("{chatId}/updateKey")]
+    public async Task<IActionResult> UpdatePublicKey(int chatId, [FromBody] UpdateKeyRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (!await _chatService.IsUserInChatAsync(chatId, userId))
+            return Forbid();
+
+        await _userService.AddDhPublicKeyAsync(userId, chatId, request.PublicKey);
+        return Ok();
     }
 }

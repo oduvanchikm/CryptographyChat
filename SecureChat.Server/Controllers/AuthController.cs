@@ -7,6 +7,7 @@ using SecureChat.Common;
 using SecureChat.Common.Models;
 using SecureChat.Common.ViewModels;
 using SecureChat.Database;
+using SecureChat.Server.Interfaces;
 
 namespace SecureChat.Server.Controllers;
 
@@ -16,11 +17,13 @@ public class AuthController : ControllerBase
 {
     private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
     private readonly ILogger<AuthController> _logger;
+    private readonly IUserService _userService;
 
-    public AuthController(IDbContextFactory<SecureChatDbContext> dbContextFactory, ILogger<AuthController> logger)
+    public AuthController(IUserService userService, IDbContextFactory<SecureChatDbContext> dbContextFactory, ILogger<AuthController> logger)
     {
         _dbContextFactory = dbContextFactory;
         _logger = logger;
+        _userService = userService;
     }
 
     [HttpPost("register")]
@@ -133,5 +136,31 @@ public class AuthController : ControllerBase
             username = user.Username,
             userId = user.Id
         });
+    }
+    
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        try
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = await _userService.GetUserByIdAsync(userId);
+            
+            if (user == null)
+            {
+                _logger.LogWarning($"User with ID {userId} not found");
+                return NotFound(new { message = "User not found" });
+            }
+
+            return Ok(new {
+                id = user.Id,
+                username = user.Username
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting current user");
+            return StatusCode(500, new { message = "Internal server error" });
+        }
     }
 }

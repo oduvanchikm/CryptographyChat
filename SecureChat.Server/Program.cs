@@ -36,7 +36,6 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<KafkaProducerService>();
 builder.Services.AddSingleton<KafkaConsumerService>();
-// builder.Services.AddSingleton<WebSocketManager>();
 
 // Kafka Producer
 builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>

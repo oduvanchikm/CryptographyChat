@@ -1,7 +1,6 @@
 namespace SecureChat.Common.ViewModels;
 
-public class CreateChatRequest
+public class UpdateKeyRequest
 {
-    public int ParticipantId { get; set; }
     public string PublicKey { get; set; }
 }

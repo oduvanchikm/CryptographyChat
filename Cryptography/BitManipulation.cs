@@ -4,12 +4,12 @@ public class BitManipulation
 {
     public static byte[] LeftRotateBytes(byte[] x, int shift, int w)
     {
-        shift = (shift % w + w) % w; 
+        shift = (shift % w + w) % w;
         if (shift == 0) return (byte[])x.Clone();
 
         int totalBytes = x.Length;
         byte[] result = new byte[totalBytes];
-    
+
         int byteShift = shift / 8;
         int bitShift = shift % 8;
 
@@ -17,9 +17,9 @@ public class BitManipulation
         {
             int currentIdx = i;
             int nextIdx = (i + 1) % totalBytes;
-        
+
             int newIdx = (i + byteShift) % totalBytes;
-        
+
             byte currentByte = x[currentIdx];
             byte nextByte = x[nextIdx];
 
@@ -37,7 +37,7 @@ public class BitManipulation
 
         return result;
     }
-    
+
     public static byte[] RightRotateBytes(byte[] x, int shift, int w)
     {
         shift = ((shift % w) + w) % w;
@@ -45,7 +45,7 @@ public class BitManipulation
 
         int totalBytes = x.Length;
         byte[] result = new byte[totalBytes];
-    
+
         int byteShift = shift / 8;
         int bitShift = shift % 8;
 
@@ -53,9 +53,9 @@ public class BitManipulation
         {
             int currentIdx = i;
             int prevIdx = (i - 1 + totalBytes) % totalBytes;
-        
+
             int newIdx = (i - byteShift + totalBytes) % totalBytes;
-        
+
             byte currentByte = x[currentIdx];
             byte prevByte = x[prevIdx];
 
@@ -73,27 +73,20 @@ public class BitManipulation
 
         return result;
     }
-    
+
     public static byte[] Xor(byte[] block1, byte[] block2)
     {
-        if (block1 == null) throw new ArgumentNullException(nameof(block1), "First block cannot be null");
-        if (block2 == null) throw new ArgumentNullException(nameof(block2), "Second block cannot be null");
-        if (block1.Length != block2.Length) 
-            throw new ArgumentException("Blocks must be of equal length");
-
         byte[] result = new byte[block1.Length];
         for (int i = 0; i < block1.Length; i++)
         {
             result[i] = (byte)(block1[i] ^ block2[i]);
         }
+
         return result;
     }
 
     public static byte[] AddBytes(byte[] a, byte[] b)
     {
-        if (a == null) throw new ArgumentNullException(nameof(a), "First array cannot be null");
-        if (b == null) throw new ArgumentNullException(nameof(b), "Second array cannot be null");
-
         int length = Math.Max(a.Length, b.Length);
         byte[] result = new byte[length];
         int carry = 0;
@@ -110,12 +103,9 @@ public class BitManipulation
 
         return result;
     }
-    
+
     public static byte[] SubBytes(byte[] a, byte[] b)
     {
-        if (a == null) throw new ArgumentNullException(nameof(a), "First array cannot be null");
-        if (b == null) throw new ArgumentNullException(nameof(b), "Second array cannot be null");
-
         int length = Math.Max(a.Length, b.Length);
         byte[] result = new byte[length];
         int borrow = 0;
@@ -135,6 +125,7 @@ public class BitManipulation
             {
                 borrow = 0;
             }
+
             result[i] = (byte)(temp & 0xFF);
         }
 
