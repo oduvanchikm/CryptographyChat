@@ -34,6 +34,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // Services
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddSingleton<KafkaProducerService>();
 builder.Services.AddSingleton<KafkaConsumerService>();
 
@@ -105,12 +106,20 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Middleware
+// Убедитесь, что вызываете UseRouting перед UseEndpoints
+app.UseRouting();  // Добавьте этот вызов
+
+// Убедитесь, что вызовы для аутентификации и авторизации идут после маршрутизации
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowFrontend");
+
+// Добавьте аутентификацию и авторизацию в правильном порядке
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Маршруты для API
 app.MapControllers();
 
+// Запуск приложения
 app.Run();

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace Cryptography;
 
 public class BitManipulation
@@ -130,5 +132,15 @@ public class BitManipulation
         }
 
         return result;
+    }
+    
+    public static byte[] Generate(int size)
+    {
+        byte[] iv = new byte[size];
+        using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(iv);
+        }
+        return iv;
     }
 }

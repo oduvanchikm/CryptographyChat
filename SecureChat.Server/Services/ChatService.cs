@@ -22,6 +22,8 @@ public class ChatService : IChatService
         _producer = producer;
         _consumer = consumer;
         _logger = logger;
+        
+        _consumer.Subscribe("chat-messages");
     }
 
     public async Task<Chats?> GetChatByIdAsync(int id)
@@ -34,29 +36,21 @@ public class ChatService : IChatService
     }
 
 
-    public async Task<Chats> CreateChatAsync(int creatorId, int participantId, string username, string algorithm,
-        string creatorPublicKey)
+    public async Task<Chats> CreateChatAsync(int creatorId, int participantId, string username, 
+        string algorithm, string padding, string modeCipher)
     {
         _logger.LogInformation("start creating new chat in chat service");
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         var chat = new Chats
         {
             Algorithm = algorithm,
+            Padding = padding,
+            ModeCipher = modeCipher,
             Name = username,
             ChatUser = new List<ChatUser>
             {
                 new() { UserId = creatorId },
                 new() { UserId = participantId }
-            },
-            DhPublicKey = new List<DhPublicKey>
-            {
-                new() 
-                {
-                    UserId = creatorId,
-                    PublicKey = creatorPublicKey,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddHours(24)
-                }
             }
         };
 
@@ -95,8 +89,6 @@ public class ChatService : IChatService
         int chatId,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        _consumer.Subscribe("chat-messages");
-
         try
         {
             while (!ct.IsCancellationRequested)

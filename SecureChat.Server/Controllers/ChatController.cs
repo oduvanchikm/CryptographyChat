@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SecureChat.Broker.Services;
 using SecureChat.Common.Models;
@@ -9,6 +11,8 @@ using SecureChat.Common.ViewModels;
 using SecureChat.Database;
 using SecureChat.Server.Interfaces;
 using StackExchange.Redis;
+using PaddingMode = Cryptography.PaddingMode.PaddingMode;
+using CipherMode = Cryptography.CipherMode.CipherMode;
 
 namespace SecureChat.Server.Controllers;
 
@@ -17,6 +21,7 @@ namespace SecureChat.Server.Controllers;
 [Route("api/[controller]")]
 public class ChatController : ControllerBase
 {
+    // private readonly IHubContext<ChatHub> _hubContext;
     private readonly IChatService _chatService;
     private readonly IUserService _userService;
     private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
@@ -24,6 +29,7 @@ public class ChatController : ControllerBase
     private readonly IDatabase _redisDb;
     private readonly IConnectionMultiplexer _redis;
     private readonly KafkaProducerService _kafkaProducer;
+    private readonly IEncryptionService _encryptionService;
 
     public ChatController(
         IChatService chatService,
@@ -31,7 +37,9 @@ public class ChatController : ControllerBase
         ILogger<ChatController> logger,
         IUserService userService,
         IConnectionMultiplexer redis,
-        KafkaProducerService kafkaProducer)
+        KafkaProducerService kafkaProducer,
+        IEncryptionService encryptionService
+        )
     {
         _chatService = chatService;
         _dbContextFactory = dbContextFactory;
@@ -40,6 +48,8 @@ public class ChatController : ControllerBase
         _redis = redis;
         _redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
+        _encryptionService = encryptionService;
+        // _hubContext = hubContext;
     }
 
     [HttpPost("create")]
@@ -47,15 +57,15 @@ public class ChatController : ControllerBase
     {
         _logger.LogInformation("PUBLIC KEY: ");
         _logger.LogInformation(JsonSerializer.Serialize(request));
-        _logger.LogInformation("[CreateChat] Creating new chat with {0}", request.ParticipantId);
-        _logger.LogInformation("[CreateChat] Creating new chat1");
+
         var currentUserId = GetCurrentUserId();
         int participantId = request.ParticipantId;
+
         _logger.LogInformation("[CreateChat] Creating new chat2");
-        
+
         await using var context = _dbContextFactory.CreateDbContext();
         await using var transaction = await context.Database.BeginTransactionAsync();
-        
+
         try
         {
             var participantUser = await _userService.GetUserByIdAsync(participantId);
@@ -66,7 +76,7 @@ public class ChatController : ControllerBase
             }
 
             _logger.LogInformation("[CreateChat] Creating new chat3");
-            
+
             var existingChat = await context.Chat
                 .Where(c => c.ChatUser.Count() == 2 &&
                             c.ChatUser.Any(cu => cu.UserId == currentUserId) &&
@@ -76,25 +86,49 @@ public class ChatController : ControllerBase
             if (existingChat != null)
             {
                 _logger.LogInformation("[CreateChat] Chat already exists");
-                return Ok(new { ChatId = existingChat.Id });
+
+                var otherUserId = existingChat.ChatUser
+                    .Where(u => u.UserId != currentUserId)
+                    .Select(u => u.UserId)
+                    .FirstOrDefault();
+
+                var otherPublicKeyRedisKey = $"chat:{existingChat.Id}:user:{otherUserId}:publicKey";
+                var otherPublicKey = await _redisDb.StringGetAsync(otherPublicKeyRedisKey);
+
+                return Ok(new
+                {
+                    ChatId = existingChat.Id,
+                    OtherPublicKey = otherPublicKey.HasValue ? otherPublicKey.ToString() : string.Empty
+                });
             }
 
-            var chat = await _chatService.CreateChatAsync(currentUserId, 
-                participantId, participantUser.Username, "RC5", request.PublicKey);
-            
+            _logger.LogInformation(
+                $"[CreateChat] INFORMATION ABOUT CRYPTO {request.Algorithm}, {request.Padding}, {request.ModeCipher}");
+
+            var chat = await _chatService.CreateChatAsync(currentUserId,
+                participantId, participantUser.Username, request.Algorithm, request.Padding,
+                request.ModeCipher);
+
             _logger.LogInformation("[CreateChat] Creating new chat4");
-            
-            await _userService.AddDhPublicKeyAsync(currentUserId, chat.Id, request.PublicKey);
-            
-            Console.WriteLine($"[CreateChat] PUBLIC KEY {request.PublicKey}");
-            _logger.LogInformation($"[CreateChat] PUBLIC KEY {request.PublicKey}");
-            
+
+            // var redisKey = $"chat:{chat.Id}:publicKey";
+            // await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromMinutes(10));
+
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            return Ok(new { 
+            var otherUserIdNew = chat.ChatUser
+                .Where(u => u.UserId != currentUserId)
+                .Select(u => u.UserId)
+                .FirstOrDefault();
+
+            // var otherPublicKeyRedisKeyNew = $"chat:{chat.Id}:user:{otherUserIdNew}:publicKey";
+            // var otherPublicKeyNew = await _redisDb.StringGetAsync(otherPublicKeyRedisKeyNew);
+
+            return Ok(new
+            {
                 ChatId = chat.Id,
-                OtherPublicKey = (await _userService.GetParticipantPublicKeyAsync(chat.Id, currentUserId)) ?? string.Empty
+                // OtherPublicKey = otherPublicKeyNew.HasValue ? otherPublicKeyNew.ToString() : string.Empty
             });
         }
         catch (Exception e)
@@ -104,118 +138,173 @@ public class ChatController : ControllerBase
             return StatusCode(500, new { message = "Error creating chat" });
         }
     }
-    
+
+
     private int GetCurrentUserId()
     {
         if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
         {
             return userId;
         }
-    
+
         throw new InvalidOperationException("Invalid user ID in claims");
     }
-    
+
     [HttpPost("{chatId}/send")]
     public async Task<IActionResult> SendMessage(int chatId, [FromBody] SendMessageRequest request)
     {
+        await using var context = _dbContextFactory.CreateDbContext();
         var senderId = GetCurrentUserId();
-
         if (!await _chatService.IsUserInChatAsync(chatId, senderId))
+        {
             return Forbid();
+        }
+
+        var redisKey = $"chat:{chatId}:publicKey";
+        await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromMinutes(10));
+
+        var chat = await _chatService.GetChatByIdAsync(chatId);
+        if (chat == null)
+        {
+            return NotFound(new { message = "Chat not found" });
+        }
+
+        var messageBytes = Encoding.UTF8.GetBytes(request.Message);
+        _logger.LogInformation($"Padding {chat.Padding}, cipher mode {chat.ModeCipher}");
+
+        var encryptedContent = await _encryptionService.EncryptAsync(
+            messageBytes,
+            chat.Algorithm,
+            PaddingMode.ToPaddingMode(chat.Padding),
+            CipherMode.ToCipherMode(chat.ModeCipher),
+            chatId
+        );
+
+        _logger.LogInformation("Message first " + request.Message);
+        var base64EncryptedContent = Convert.ToBase64String(encryptedContent);
 
         var messageEvent = new ChatMessageEvent
         {
             ChatId = chatId,
             SenderId = senderId,
-            EncryptedContent = request.Message,
+            EncryptedContent = base64EncryptedContent,
             SentAt = DateTime.UtcNow
         };
 
+        Console.WriteLine("[SendMessage] BEFORE ENCRYPT: " + request.Message);
+        Console.WriteLine("[SendMessage] ENCRYPT RESULT: " + encryptedContent);
+
         await _kafkaProducer.SendMessage(messageEvent);
 
-        var redisKey = $"chat:{chatId}:messages";
+        var redisMessagesKey = $"chat:{chatId}:messages";
         var json = JsonSerializer.Serialize(messageEvent);
-        await _redisDb.ListRightPushAsync(redisKey, json);
+        await _redisDb.ListRightPushAsync(redisMessagesKey, json);
 
         return Ok();
     }
-    
+
     [HttpGet("{chatId}/history")]
     public async Task<IActionResult> GetHistory(int chatId, [FromQuery] int count = 50)
     {
         var userId = GetCurrentUserId();
-
+        await using var context = _dbContextFactory.CreateDbContext();
+    
         if (!await _chatService.IsUserInChatAsync(chatId, userId))
         {
             return Forbid();
         }
-
+    
+        var chat = await _chatService.GetChatByIdAsync(chatId);
+        if (chat == null)
+        {
+            return NotFound(new { message = "Chat not found" });
+        }
+    
         var messages = await _redisDb.ListRangeAsync($"chat:{chatId}:messages", -count, -1);
-        
+    
         var messageList = messages
             .Select(m => JsonSerializer.Deserialize<ChatMessageEvent>(m!))
             .Where(m => m != null)
             .ToList();
-        
+    
         var enrichedMessages = new List<MessageWithSenderInfo>();
-        
+    
         foreach (var message in messageList)
         {
             var senderUser = await _userService.GetUserByIdAsync(message.SenderId);
-
+    
+            var result1 = message.EncryptedContent; 
+            Console.WriteLine("var result1 = message.EncryptedContent " + result1);
+            var result2 = Convert.FromBase64String(result1); 
+            Console.WriteLine("result2 = Convert.FromBase64String(result1) " + result2);
+    
+            var decryptedBytes = await _encryptionService.DecryptAsync(
+                result2,
+                chat.Algorithm,
+                PaddingMode.ToPaddingMode(chat.Padding),
+                CipherMode.ToCipherMode(chat.ModeCipher),
+                chatId
+            );
+    
+            _logger.LogInformation("MESSAGE AFTER DECRYPTION " + decryptedBytes);
+    
             enrichedMessages.Add(new MessageWithSenderInfo
             {
                 SenderId = message.SenderId,
-                EncryptedContent = message.EncryptedContent,
+                EncryptedContent = Encoding.UTF8.GetString(decryptedBytes),
                 SentAt = message.SentAt,
                 SenderUsername = senderUser?.Username ?? "Unknown",
                 IsCurrentUser = message.SenderId == userId
             });
         }
-
+    
         return Ok(enrichedMessages);
     }
-    
+
     [HttpGet("{chatId}/participantKey")]
     public async Task<IActionResult> GetParticipantKey(int chatId)
     {
-        _logger.LogInformation("[GetParticipantKey] Getting participant key");
         var userId = GetCurrentUserId();
-        _logger.LogInformation($"[GetParticipantKey] {userId} and {chatId}");
         if (!await _chatService.IsUserInChatAsync(chatId, userId))
         {
-            _logger.LogInformation("[GetParticipantKey] error with creating participant key1");
             return Forbid();
         }
-        _logger.LogInformation($"[GetParticipantKey] {userId} and {chatId}");
 
-        string key = null;
-
-        try
+        var chat = await _chatService.GetChatByIdAsync(chatId);
+        if (chat == null)
         {
-            key = await _userService.GetParticipantPublicKeyAsync(chatId, userId);
-            return Ok(new { publicKey = key });
+            return NotFound(new { message = "Chat not found" });
         }
-        catch (KeyNotFoundException)
+
+        var participantId = chat.ChatUser.FirstOrDefault(u => u.UserId != userId)?.UserId;
+
+        if (participantId == null)
         {
-            _logger.LogInformation("[GetParticipantKey] Public key not found");
+            return NotFound(new { message = "Participant not found" });
+        }
+
+        var redisKey = $"chat:{chatId}:user:{participantId}:publicKey";
+        var publicKey = await _redisDb.StringGetAsync(redisKey);
+
+        if (publicKey.IsNullOrEmpty)
+        {
             return NotFound(new { message = "Public key not found" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[GetParticipantKey] Unexpected error");
-            return StatusCode(500, new { message = "Internal server error" });
-        }
+
+        return Ok(new { publicKey = publicKey.ToString() });
     }
-    
+
     [HttpPost("{chatId}/updateKey")]
     public async Task<IActionResult> UpdatePublicKey(int chatId, [FromBody] UpdateKeyRequest request)
     {
         var userId = GetCurrentUserId();
         if (!await _chatService.IsUserInChatAsync(chatId, userId))
+        {
             return Forbid();
+        }
 
-        await _userService.AddDhPublicKeyAsync(userId, chatId, request.PublicKey);
+        var redisKey = $"chat:{chatId}:user:{userId}:publicKey";
+        await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromHours(24));
         return Ok();
     }
 }

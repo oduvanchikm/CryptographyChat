@@ -31,5 +31,13 @@
       <jdbc-url>jdbc:postgresql://localhost:5440/securechatdb?password=password&amp;user=admin</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="securechatdb@localhost [4]" uuid="5df49a01-6790-4fa2-a057-43a6e6a68c5d">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <configured-by-url>true</configured-by-url>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5440/securechatdb?password=password&amp;user=admin</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

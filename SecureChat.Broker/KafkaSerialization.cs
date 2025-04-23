@@ -10,7 +10,7 @@ public class KafkaSerialization
         public byte[] Serialize(T data, SerializationContext context)
             => JsonSerializer.SerializeToUtf8Bytes(data);
     }
-
+    
     public class JsonDeserializer<T> : IDeserializer<T>
     {
         public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)

@@ -17,6 +17,12 @@ public class ChatsConfiguration : IEntityTypeConfiguration<Chats>
         builder.Property(x => x.Algorithm)
             .IsRequired()
             .HasMaxLength(50);
+        
+        builder.Property(x => x.Padding)
+            .HasMaxLength(50);
+        
+        builder.Property(x => x.ModeCipher)
+            .HasMaxLength(50);
 
         builder.Property(x => x.CreatedAt)
             .IsRequired();

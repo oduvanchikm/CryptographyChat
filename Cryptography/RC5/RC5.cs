@@ -5,7 +5,7 @@ namespace Cryptography.RC5;
 public class RC5 : ISymmetricEncryptionAlgorithm
 {
     private IKeyExpansion _keyExpansion;
-    private readonly byte[][] _S;
+    private byte[][] _S;
     private const int w = 32;
     private const int r = 12;
     private readonly int t;
@@ -116,5 +116,11 @@ public class RC5 : ISymmetricEncryptionAlgorithm
         }
 
         return decrypted;
+    }
+
+    public void SetKey(byte[] key)
+    {
+        _keyExpansion = new KeyExpansion();
+        Array.Copy(_keyExpansion.GenerateRoundKeys(key), _S, _S.Length);
     }
 }

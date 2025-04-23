@@ -1,8 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {useEffect, useState, useRef, useCallback} from 'react';
+import {useNavigate} from 'react-router-dom';
 import './ChatsPage.css';
-import DiffieHellman from './DH/DiffieHellman';
-import { P, G } from './DH/constants';
 
 function ChatsPage() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -14,29 +12,39 @@ function ChatsPage() {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const chatsContainerRef = useRef(null);
 
+    const CRYPTO_ALGORITHMS = ['RC5', 'MARS'];
+    const PADDING_OPTIONS = ['PKCS7', 'Zeros', 'ANSIX923', 'ISO10126'];
+    const MODE_OPTIONS = ['CBC', 'ECB', 'CFB', 'OFB', 'CTR'];
+
+    const [cryptoConfig, setCryptoConfig] = useState({
+        algorithm: 'RC5',
+        padding: 'PKCS7',
+        mode: 'CBC'
+    });
+
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchChats = async () => {
-            try {
-                const response = await fetch(`http://localhost:5078/api/chats/userschats`, {
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    throw new Error('Ошибка загрузки чатов');
-                }
-                const data = await response.json();
-                setChats(data);
-            } catch (err) {
-                console.error('Ошибка при загрузке чатов:', err);
-                setError(err.message);
+    const fetchChats = useCallback(async () => {
+        try {
+            const response = await fetch(`http://localhost:5078/api/chats/userschats`, {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки чатов');
             }
-        };
-
-        fetchChats().catch(console.error);
+            const data = await response.json();
+            setChats(data);
+        } catch (err) {
+            console.error('Ошибка при загрузке чатов:', err);
+            setError(err.message);
+        }
     }, []);
 
-    const searchUsers = async (query) => {
+    useEffect(() => {
+        fetchChats().catch(console.error);
+    }, [fetchChats]);
+
+    const searchUsers = useCallback(async (query) => {
         if (!query.trim()) {
             setUsers([]);
             return;
@@ -68,7 +76,7 @@ function ChatsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -76,36 +84,39 @@ function ChatsPage() {
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [searchQuery]);
+    }, [searchQuery, searchUsers]);
 
-    const handleUserClick = async (participantId) => {
+    const handleUserClick = useCallback(async (participantId) => {
         if (creatingChat) return;
         setCreatingChat(true);
         setError(null);
 
         try {
-            const dh = new DiffieHellman(P, G);
+            const requestBody = JSON.stringify({
+                participantId,
+                algorithm: cryptoConfig.algorithm,
+                padding: cryptoConfig.padding,
+                modeCipher: cryptoConfig.mode
+            });
 
             const response = await fetch(`http://localhost:5078/api/chat/create`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
-                body: JSON.stringify({
-                    participantId,
-                    publicKey: dh.publicKey.toString()
-                })
+                body: requestBody
             });
 
             if (!response.ok) {
-                throw new Error('Ошибка при создании чата');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Ошибка при создании чата');
             }
 
             const data = await response.json();
 
             navigate(`/chat/${data.chatId}`, {
                 state: {
-                    publicKey: dh.publicKey.toString(),
-                    chatId: data.chatId
+                    chatId: data.chatId,
+                    cryptoConfig
                 }
             });
         } catch (error) {
@@ -114,11 +125,55 @@ function ChatsPage() {
         } finally {
             setCreatingChat(false);
         }
-    };
+    }, [creatingChat, cryptoConfig, navigate]);
 
-    const handleChatClick = (id) => {
+    const handleChatClick = useCallback((id) => {
         navigate(`/chat/${id}`);
-    };
+    }, [navigate]);
+
+    // Улучшенный рендеринг настроек шифрования
+    const renderCryptoSettings = () => (
+        <div className="crypto-settings">
+            <div className="crypto-option">
+                <label>Algorithm:</label>
+                <select
+                    value={cryptoConfig.algorithm}
+                    onChange={(e) => setCryptoConfig(prev => ({...prev, algorithm: e.target.value}))}
+                    disabled={creatingChat}
+                >
+                    {CRYPTO_ALGORITHMS.map(alg => (
+                        <option key={alg} value={alg}>{alg}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="crypto-option">
+                <label>Padding:</label>
+                <select
+                    value={cryptoConfig.padding}
+                    onChange={(e) => setCryptoConfig(prev => ({...prev, padding: e.target.value}))}
+                    disabled={creatingChat}
+                >
+                    {PADDING_OPTIONS.map(pad => (
+                        <option key={pad} value={pad}>{pad}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="crypto-option">
+                <label>Mode:</label>
+                <select
+                    value={cryptoConfig.mode}
+                    onChange={(e) => setCryptoConfig(prev => ({...prev, mode: e.target.value}))}
+                    disabled={creatingChat}
+                >
+                    {MODE_OPTIONS.map(mode => (
+                        <option key={mode} value={mode}>{mode}</option>
+                    ))}
+                </select>
+            </div>
+        </div>
+    );
 
     return (
         <div className="app-container">
@@ -149,14 +204,24 @@ function ChatsPage() {
                 {isSearchFocused || searchQuery.trim() ? (
                     <div className="search-section">
                         <h2 className="section-title">Search Results</h2>
+
+                        {renderCryptoSettings()}
+
                         {users.length > 0 ? (
                             <ul className="users-grid">
                                 {users.map(user => (
-                                    <li key={user.id} className="user-card" onClick={() => handleUserClick(user.id)}>
+                                    <li
+                                        key={user.id}
+                                        className="user-card"
+                                        onClick={() => handleUserClick(user.id)}
+                                    >
                                         <div className="user-avatar">
                                             <img
                                                 src={`https://i.pravatar.cc/150?u=${user.id}`}
                                                 alt={user.username}
+                                                onError={(e) => {
+                                                    e.target.src = 'https://via.placeholder.com/150';
+                                                }}
                                             />
                                         </div>
                                         <div className="user-details">
@@ -180,16 +245,24 @@ function ChatsPage() {
                                 {chats.map(chat => (
                                     <li key={chat.id} className="chat-item" onClick={() => handleChatClick(chat.id)}>
                                         <div className="chat-avatar">
-                                            <img src={chat.avatar} alt={chat.name} />
+                                            <img
+                                                src={chat.avatar || 'https://via.placeholder.com/150'}
+                                                alt={chat.name}
+                                                onError={(e) => {
+                                                    e.target.src = 'https://via.placeholder.com/150';
+                                                }}
+                                            />
                                         </div>
                                         <div className="chat-info">
                                             <div className="chat-header">
                                                 <h3 className="chat-name">{chat.name}</h3>
                                                 <span className="chat-time">
-                                                    {new Date(chat.lastMessageTime).toLocaleTimeString([], {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })}
+                                                    {chat.lastMessageTime ?
+                                                        new Date(chat.lastMessageTime).toLocaleTimeString([], {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        }) : ''
+                                                    }
                                                 </span>
                                             </div>
                                             <p className="chat-preview">
@@ -205,6 +278,7 @@ function ChatsPage() {
                                 <button
                                     className="new-chat-btn"
                                     onClick={() => setIsSearchFocused(true)}
+                                    disabled={creatingChat}
                                 >
                                     Start New Chat
                                 </button>
@@ -220,6 +294,7 @@ function ChatsPage() {
                     <button
                         className="close-error"
                         onClick={() => setError(null)}
+                        aria-label="Close error"
                     >
                         &times;
                     </button>

@@ -1,8 +1,17 @@
 import React, {useState, useEffect} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
+import { HubConnectionBuilder } from '@microsoft/signalr';
 import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
 import {P, G} from './DH/constants';
+
+function bigIntToBase64(bigint) {
+    const hex = bigint.toString(16);
+    const paddedHex = hex.length % 2 === 0 ? hex : '0' + hex;
+    const byteArray = new Uint8Array(paddedHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    const binaryString = String.fromCharCode(...byteArray);
+    return btoa(binaryString);
+}
 
 function PersChatPage() {
     const {chatId} = useParams();
@@ -13,7 +22,33 @@ function PersChatPage() {
     const [sharedSecret, setSharedSecret] = useState(null);
     const [, setOtherPublicKey] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [connection, setConnection] = useState(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const setupSignalR = async () => {
+            const hubConnection = new HubConnectionBuilder()
+                .withUrl(`http://localhost:5078/chatHub`)
+                .build();
+
+            hubConnection.on('ReceiveMessage', (encryptedMessage) => {
+                setMessages((prevMessages) => [...prevMessages, encryptedMessage]);
+            });
+
+            await hubConnection.start();
+            setConnection(hubConnection);
+
+            await hubConnection.invoke('JoinChatGroup', chatId);
+        };
+
+        setupSignalR();
+
+        return () => {
+            if (connection) {
+                connection.stop();
+            }
+        };
+    }, [chatId, connection]);
 
     useEffect(() => {
         const fetchCurrentUser = async () => {
@@ -26,17 +61,14 @@ function PersChatPage() {
         fetchCurrentUser();
     }, []);
 
-    // 2. Инициализация DH и загрузка сообщений
     useEffect(() => {
         if (!currentUserId) return;
 
         const initDH = async () => {
             try {
-                // Генерируем ключи для текущего пользователя
                 const dh = new DiffieHellman(P, G);
                 setDhInstance(dh);
 
-                // Отправляем свой публичный ключ на сервер
                 await fetch(`http://localhost:5078/api/chat/${chatId}/updateKey`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -46,7 +78,6 @@ function PersChatPage() {
                     })
                 });
 
-                // Пытаемся получить ключ собеседника
                 const keyResponse = await fetch(`http://localhost:5078/api/chat/${chatId}/participantKey`, {
                     credentials: 'include'
                 });
@@ -60,7 +91,6 @@ function PersChatPage() {
                     }
                 }
 
-                // Загружаем историю сообщений
                 const messagesResponse = await fetch(`http://localhost:5078/api/chat/${chatId}/history?count=50`, {
                     credentials: 'include'
                 });
@@ -80,16 +110,15 @@ function PersChatPage() {
         if (!newMessage.trim() || !sharedSecret) return;
 
         try {
-            const encryptedMessage = Array.from(newMessage)
-                .map(char =>
-                    String.fromCharCode(char.charCodeAt(0) ^ Number(sharedSecret % 255n)))
-                .join('');
-
+            const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
             await fetch(`http://localhost:5078/api/chat/${chatId}/send`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
-                body: JSON.stringify({message: encryptedMessage})
+                body: JSON.stringify({
+                    message: newMessage,
+                    publicKey: publicKeyBase64
+                })
             });
 
             setNewMessage('');
@@ -102,13 +131,7 @@ function PersChatPage() {
         }
     };
 
-    const decryptMessage = (encrypted) => {
-        if (!sharedSecret || !encrypted) return encrypted;
-        return Array.from(encrypted)
-            .map(char =>
-                String.fromCharCode(char.charCodeAt(0) ^ Number(sharedSecret % 255n)))
-            .join('');
-    };
+    const decryptMessage = (encrypted) => encrypted;
 
     if (isLoading) return <div className="loading">Loading chat...</div>;
 
