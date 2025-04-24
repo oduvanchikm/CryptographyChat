@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import { HubConnectionBuilder } from '@microsoft/signalr';
 import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
 import {P, G} from './DH/constants';
@@ -22,33 +21,7 @@ function PersChatPage() {
     const [sharedSecret, setSharedSecret] = useState(null);
     const [, setOtherPublicKey] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
-    const [connection, setConnection] = useState(null);
     const navigate = useNavigate();
-
-    useEffect(() => {
-        const setupSignalR = async () => {
-            const hubConnection = new HubConnectionBuilder()
-                .withUrl(`http://localhost:5078/chatHub`)
-                .build();
-
-            hubConnection.on('ReceiveMessage', (encryptedMessage) => {
-                setMessages((prevMessages) => [...prevMessages, encryptedMessage]);
-            });
-
-            await hubConnection.start();
-            setConnection(hubConnection);
-
-            await hubConnection.invoke('JoinChatGroup', chatId);
-        };
-
-        setupSignalR();
-
-        return () => {
-            if (connection) {
-                connection.stop();
-            }
-        };
-    }, [chatId, connection]);
 
     useEffect(() => {
         const fetchCurrentUser = async () => {

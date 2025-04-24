@@ -35,8 +35,14 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
-builder.Services.AddSingleton<KafkaProducerService>();
 builder.Services.AddSingleton<KafkaConsumerService>();
+
+builder.Services.AddSingleton(new KafkaSerialization.JsonSerializer<ChatMessageEvent>());
+builder.Services.AddSingleton(new KafkaSerialization.JsonDeserializer<ChatMessageEvent>());
+
+builder.Services.AddSingleton<KafkaProducerService>();
+
+builder.Services.AddHostedService<KafkaConsumerService>();
 
 // Kafka Producer
 builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>

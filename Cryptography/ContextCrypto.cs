@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Cryptography.CipherMode;
 using Cryptography.Interfaces;
 
@@ -19,9 +20,11 @@ public class ContextCrypto
         _cipherMode = cipherMode;
         _paddingMode = paddingMode;
         _encryptor = encryptor;
-        _encryptor.SetKey(key);
-        _IV = BitManipulation.Generate(8);;
+        // _encryptor.SetKey(key);
+        _IV = BitManipulation.Generate(8);
     }
+    
+    public byte[] GetIV() => _IV;
 
     public async Task<byte[]> EncryptAsync(byte[] data)
     {
@@ -52,15 +55,15 @@ public class ContextCrypto
             case CipherMode.CipherMode.Mode.ECB:
                 return ECB.EncryptECB(block, _encryptor);
             case CipherMode.CipherMode.Mode.CBC:
-                return CBC.EncryptCBC(block, _encryptor, _IV);
+                return CBC.EncryptCBC(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.CFB:
-                return CFB.EncryptCFB(block, _encryptor, _IV);
+                return CFB.EncryptCFB(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.OFB:
-                return OFB.EncryptOFB(block, _encryptor, _IV);
+                return OFB.EncryptOFB(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.PCBC:
-                return PCBC.EncryptPCBC(block, _encryptor, _IV);
+                return PCBC.EncryptPCBC(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.CTR:
-                return CTR.EncryptCTR(block, _encryptor, _IV);
+                return CTR.EncryptCTR(block, _encryptor, GetIV());
             default:
                 return _encryptor.Encrypt(block);
         }
@@ -70,10 +73,23 @@ public class ContextCrypto
     {
         var tasks = new List<Task<byte[]>>();
 
+        if (data == null || data.Length == 0)
+        {
+            Console.WriteLine("[ CONTEXT CRYPTO DECRYPT ] data is null");
+        }
+
+        Console.WriteLine($"[ CONTEXT CRYPTO DECRYPT ] {data.Length}");
+
+        if (data.Length % BlockSize != 0)
+        {
+            throw new CryptographicException("Encrypted data length is not a multiple of block size.");
+        }
+
         for (int i = 0; i < data.Length; i += BlockSize)
         {
+            int remaining = Math.Min(BlockSize, data.Length - i);
             var block = new byte[BlockSize];
-            Array.Copy(data, i, block, 0, BlockSize);
+            Array.Copy(data, i, block, 0, remaining);
             tasks.Add(Task.Run(() => DecryptBlockAsync(block)));
         }
 
@@ -91,15 +107,15 @@ public class ContextCrypto
             case CipherMode.CipherMode.Mode.ECB:
                 return ECB.DecryptECB(block, _encryptor);
             case CipherMode.CipherMode.Mode.CBC:
-                return CBC.DecryptCBC(block, _encryptor, _IV);
+                return CBC.DecryptCBC(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.CFB:
-                return CFB.DecryptCFB(block, _encryptor, _IV);
+                return CFB.DecryptCFB(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.OFB:
-                return OFB.DecryptOFB(block, _encryptor, _IV);
+                return OFB.DecryptOFB(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.PCBC:
-                return PCBC.DecryptPCBC(block, _encryptor, _IV);
+                return PCBC.DecryptPCBC(block, _encryptor, GetIV());
             case CipherMode.CipherMode.Mode.CTR:
-                return CTR.DecryptCTR(block, _encryptor, _IV);
+                return CTR.DecryptCTR(block, _encryptor, GetIV());
             default:
                 return _encryptor.Decrypt(block);
         }

@@ -8,40 +8,39 @@ namespace SecureChat.Broker.Services;
 
 public class KafkaProducerService
 {
-    private readonly IProducer<Null, string> _producer;
-    private readonly string _topic;
+    private readonly IProducer<Null, ChatMessageEvent> _producer;
     private readonly ILogger<KafkaProducerService> _logger;
     
-    public KafkaProducerService(IConfiguration configuration, ILogger<KafkaProducerService> logger)
+    public KafkaProducerService(
+        IConfiguration configuration,
+        KafkaSerialization.JsonSerializer<ChatMessageEvent> serializer,
+        ILogger<KafkaProducerService> logger)
     {
         var config = new ProducerConfig
         {
-            BootstrapServers = configuration["Kafka:BootstrapServers"]
+            BootstrapServers = configuration["Kafka:BootstrapServers"],
+            MessageTimeoutMs = 5000,
+            Acks = Acks.All
         };
         
         _logger = logger;
-        _topic = configuration["Kafka:Topic"];
-        _producer = new ProducerBuilder<Null, string>(config).Build();
+        _producer = new ProducerBuilder<Null, ChatMessageEvent>(config)
+            .SetValueSerializer(serializer)
+            .Build();
     }
 
     public async Task SendMessage(ChatMessageEvent message)
     {
-        var json = JsonSerializer.Serialize(message);
-
         try
         {
-            _logger.LogInformation($"Sending message: {json}");
-            var send = await _producer.ProduceAsync(_topic, new Message<Null, string> { Value = json });
-            _logger.LogInformation($"Message sent to {send.TopicPartitionOffset}");
+            var result = await _producer.ProduceAsync("chat-messages", 
+                new Message<Null, ChatMessageEvent> { Value = message });
+            
+            _logger.LogInformation($"Message sent to partition {result.Partition}, offset {result.Offset}");
         }
-        catch (ProduceException<Null, string> e)
+        catch (Exception ex)
         {
-            _logger.LogError("Kafka send error: {Reason}", e.Error.Reason);
+            _logger.LogError(ex, "Failed to send message to Kafka");
         }
-    }
-    
-    public void Dispose()
-    {
-        _producer.Dispose();
     }
 }

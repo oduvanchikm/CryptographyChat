@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -21,7 +22,6 @@ namespace SecureChat.Server.Controllers;
 [Route("api/[controller]")]
 public class ChatController : ControllerBase
 {
-    // private readonly IHubContext<ChatHub> _hubContext;
     private readonly IChatService _chatService;
     private readonly IUserService _userService;
     private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
@@ -49,7 +49,6 @@ public class ChatController : ControllerBase
         _redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
         _encryptionService = encryptionService;
-        // _hubContext = hubContext;
     }
 
     [HttpPost("create")]
@@ -110,25 +109,13 @@ public class ChatController : ControllerBase
                 request.ModeCipher);
 
             _logger.LogInformation("[CreateChat] Creating new chat4");
-
-            // var redisKey = $"chat:{chat.Id}:publicKey";
-            // await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromMinutes(10));
-
+            
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
-
-            var otherUserIdNew = chat.ChatUser
-                .Where(u => u.UserId != currentUserId)
-                .Select(u => u.UserId)
-                .FirstOrDefault();
-
-            // var otherPublicKeyRedisKeyNew = $"chat:{chat.Id}:user:{otherUserIdNew}:publicKey";
-            // var otherPublicKeyNew = await _redisDb.StringGetAsync(otherPublicKeyRedisKeyNew);
-
+            
             return Ok(new
             {
                 ChatId = chat.Id,
-                // OtherPublicKey = otherPublicKeyNew.HasValue ? otherPublicKeyNew.ToString() : string.Empty
             });
         }
         catch (Exception e)
@@ -168,10 +155,16 @@ public class ChatController : ControllerBase
         {
             return NotFound(new { message = "Chat not found" });
         }
-
-        var messageBytes = Encoding.UTF8.GetBytes(request.Message);
         _logger.LogInformation($"Padding {chat.Padding}, cipher mode {chat.ModeCipher}");
+        
+        // получаем сообщение в стринге 
+        Console.WriteLine("1. [SendMessage] Message: " + request.Message);
+        
+        // переводим сообщение в байты
+        var messageBytes = Encoding.UTF8.GetBytes(request.Message);
+        Console.WriteLine("2. [SendMessage] Message in bytes : " + BitConverter.ToString(messageBytes));
 
+        // шифруем сообщение
         var encryptedContent = await _encryptionService.EncryptAsync(
             messageBytes,
             chat.Algorithm,
@@ -179,10 +172,12 @@ public class ChatController : ControllerBase
             CipherMode.ToCipherMode(chat.ModeCipher),
             chatId
         );
-
-        _logger.LogInformation("Message first " + request.Message);
+        
+        // переводим результат из байтов в стрингу
         var base64EncryptedContent = Convert.ToBase64String(encryptedContent);
+        Console.WriteLine("3. [SendMessage] Encrypted Base64: " + base64EncryptedContent);
 
+        // добавляем необходимые данные
         var messageEvent = new ChatMessageEvent
         {
             ChatId = chatId,
@@ -191,14 +186,11 @@ public class ChatController : ControllerBase
             SentAt = DateTime.UtcNow
         };
 
-        Console.WriteLine("[SendMessage] BEFORE ENCRYPT: " + request.Message);
-        Console.WriteLine("[SendMessage] ENCRYPT RESULT: " + encryptedContent);
-
+        // отправляем в кафку
         await _kafkaProducer.SendMessage(messageEvent);
 
         var redisMessagesKey = $"chat:{chatId}:messages";
-        var json = JsonSerializer.Serialize(messageEvent);
-        await _redisDb.ListRightPushAsync(redisMessagesKey, json);
+        await _redisDb.ListRightPushAsync(redisMessagesKey, JsonSerializer.Serialize(messageEvent));
 
         return Ok();
     }
@@ -232,30 +224,47 @@ public class ChatController : ControllerBase
         foreach (var message in messageList)
         {
             var senderUser = await _userService.GetUserByIdAsync(message.SenderId);
-    
-            var result1 = message.EncryptedContent; 
-            Console.WriteLine("var result1 = message.EncryptedContent " + result1);
-            var result2 = Convert.FromBase64String(result1); 
-            Console.WriteLine("result2 = Convert.FromBase64String(result1) " + result2);
-    
-            var decryptedBytes = await _encryptionService.DecryptAsync(
-                result2,
-                chat.Algorithm,
-                PaddingMode.ToPaddingMode(chat.Padding),
-                CipherMode.ToCipherMode(chat.ModeCipher),
-                chatId
-            );
-    
-            _logger.LogInformation("MESSAGE AFTER DECRYPTION " + decryptedBytes);
-    
-            enrichedMessages.Add(new MessageWithSenderInfo
+            
+            // получаем сообщение в стринге
+            string messageString = message.EncryptedContent;
+            Console.WriteLine("1. [HistoryMessage] Message in string: " + messageString);
+            
+            try 
             {
-                SenderId = message.SenderId,
-                EncryptedContent = Encoding.UTF8.GetString(decryptedBytes),
-                SentAt = message.SentAt,
-                SenderUsername = senderUser?.Username ?? "Unknown",
-                IsCurrentUser = message.SenderId == userId
-            });
+                // декодируем из Base64 в байты
+                byte[] encryptedBytes = Convert.FromBase64String(messageString);
+                Console.WriteLine("2. [HistoryMessage] Encrypted bytes: " + BitConverter.ToString(encryptedBytes));
+
+                // дешифруем сообщение
+                var decryptedBytes = await _encryptionService.DecryptAsync(
+                    encryptedBytes,
+                    chat.Algorithm,
+                    PaddingMode.ToPaddingMode(chat.Padding),
+                    CipherMode.ToCipherMode(chat.ModeCipher),
+                    chatId
+                );
+    
+                // декодируем оригинальное сообщение из байтов
+                string decryptedMessage = Encoding.UTF8.GetString(decryptedBytes);
+                Console.WriteLine("3. [HistoryMessage] Decrypted message: " + decryptedMessage);
+
+                enrichedMessages.Add(new MessageWithSenderInfo
+                {
+                    SenderId = message.SenderId,
+                    EncryptedContent = decryptedMessage, 
+                    SentAt = message.SentAt,
+                    SenderUsername = senderUser?.Username ?? "Unknown",
+                    IsCurrentUser = message.SenderId == userId
+                });
+            }
+            catch (FormatException ex)
+            {
+                Console.WriteLine($"Base64 decode error: {ex.Message}"); 
+            }
+            catch (CryptographicException ex)
+            {
+                Console.WriteLine($"Decryption error: {ex.Message}");
+            }
         }
     
         return Ok(enrichedMessages);

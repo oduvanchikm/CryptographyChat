@@ -47,7 +47,6 @@ public class EncryptionService : IEncryptionService
     {
         try
         {
-            // var encryptedBytes = Convert.FromBase64String(data);
             var context = CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId);
             return await context.DecryptAsync(data);
         }
@@ -61,6 +60,9 @@ public class EncryptionService : IEncryptionService
         int chatId)
     {
         var publicKey = GetPublicKeyAsync(chatId).Result;
+        
+        Console.WriteLine($"[ CreateCryptoContext ] {publicKey.Length}");
+        Console.WriteLine($"[ CreateCryptoContext ] 2 {publicKey.Take(16).ToArray().Length}");
         
         byte[] key = algorithm.ToUpper() switch
         {
