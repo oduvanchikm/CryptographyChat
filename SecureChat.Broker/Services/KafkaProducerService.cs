@@ -8,25 +8,15 @@ namespace SecureChat.Broker.Services;
 
 public class KafkaProducerService
 {
-    private readonly IProducer<Null, ChatMessageEvent> _producer;
+    private readonly IProducer<int, ChatMessageEvent> _producer;
     private readonly ILogger<KafkaProducerService> _logger;
     
     public KafkaProducerService(
-        IConfiguration configuration,
-        KafkaSerialization.JsonSerializer<ChatMessageEvent> serializer,
+        IProducer<int, ChatMessageEvent> producer,
         ILogger<KafkaProducerService> logger)
     {
-        var config = new ProducerConfig
-        {
-            BootstrapServers = configuration["Kafka:BootstrapServers"],
-            MessageTimeoutMs = 5000,
-            Acks = Acks.All
-        };
-        
+        _producer = producer;
         _logger = logger;
-        _producer = new ProducerBuilder<Null, ChatMessageEvent>(config)
-            .SetValueSerializer(serializer)
-            .Build();
     }
 
     public async Task SendMessage(ChatMessageEvent message)
@@ -34,7 +24,7 @@ public class KafkaProducerService
         try
         {
             var result = await _producer.ProduceAsync("chat-messages", 
-                new Message<Null, ChatMessageEvent> { Value = message });
+                new Message<int, ChatMessageEvent> { Value = message });
             
             _logger.LogInformation($"Message sent to partition {result.Partition}, offset {result.Offset}");
         }

@@ -4,13 +4,13 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SecureChat.Broker.Services;
 using SecureChat.Common.Models;
 using SecureChat.Common.ViewModels;
 using SecureChat.Database;
 using SecureChat.Server.Interfaces;
+using SecureChat.Server.Services;
 using StackExchange.Redis;
 using PaddingMode = Cryptography.PaddingMode.PaddingMode;
 using CipherMode = Cryptography.CipherMode.CipherMode;
@@ -30,6 +30,7 @@ public class ChatController : ControllerBase
     private readonly IConnectionMultiplexer _redis;
     private readonly KafkaProducerService _kafkaProducer;
     private readonly IEncryptionService _encryptionService;
+    private readonly ChatHistoryService _chatHistoryService;
 
     public ChatController(
         IChatService chatService,
@@ -38,7 +39,8 @@ public class ChatController : ControllerBase
         IUserService userService,
         IConnectionMultiplexer redis,
         KafkaProducerService kafkaProducer,
-        IEncryptionService encryptionService
+        IEncryptionService encryptionService,
+        ChatHistoryService chatHistoryService
         )
     {
         _chatService = chatService;
@@ -49,6 +51,7 @@ public class ChatController : ControllerBase
         _redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
         _encryptionService = encryptionService;
+        _chatHistoryService = chatHistoryService;
     }
 
     [HttpPost("create")]
@@ -126,7 +129,6 @@ public class ChatController : ControllerBase
         }
     }
 
-
     private int GetCurrentUserId()
     {
         if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
@@ -189,9 +191,6 @@ public class ChatController : ControllerBase
         // отправляем в кафку
         await _kafkaProducer.SendMessage(messageEvent);
 
-        var redisMessagesKey = $"chat:{chatId}:messages";
-        await _redisDb.ListRightPushAsync(redisMessagesKey, JsonSerializer.Serialize(messageEvent));
-
         return Ok();
     }
 
@@ -211,17 +210,12 @@ public class ChatController : ControllerBase
         {
             return NotFound(new { message = "Chat not found" });
         }
-    
-        var messages = await _redisDb.ListRangeAsync($"chat:{chatId}:messages", -count, -1);
-    
-        var messageList = messages
-            .Select(m => JsonSerializer.Deserialize<ChatMessageEvent>(m!))
-            .Where(m => m != null)
-            .ToList();
+        
+        var messages = _chatHistoryService.GetChatHistory(chatId, count);
     
         var enrichedMessages = new List<MessageWithSenderInfo>();
     
-        foreach (var message in messageList)
+        foreach (var message in messages)
         {
             var senderUser = await _userService.GetUserByIdAsync(message.SenderId);
             
@@ -267,7 +261,7 @@ public class ChatController : ControllerBase
             }
         }
     
-        return Ok(enrichedMessages);
+        return Ok(enrichedMessages.OrderBy(m => m.SentAt));
     }
 
     [HttpGet("{chatId}/participantKey")]

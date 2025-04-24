@@ -14,7 +14,7 @@ export default function AuthWrapper({ children }) {
                     throw new Error('No active session');
                 }
 
-                const response = await fetch('http://localhost:5078/api/auth/me', {
+                const response = await fetch('http://localhost:5079/api/auth/me', {
                     credentials: 'include'
                 });
 

@@ -1,73 +1,56 @@
-using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SecureChat.Common.Models;
-using StackExchange.Redis;
 
 namespace SecureChat.Broker.Services;
 
 public class KafkaConsumerService : BackgroundService
 {
-    private readonly IConsumer<Null, ChatMessageEvent> _consumer;
-    private readonly IDatabase _redisDb;
+    private readonly IConsumer<int, ChatMessageEvent> _consumer;
     private readonly ILogger<KafkaConsumerService> _logger;
     
     public KafkaConsumerService(
-        IConfiguration configuration,
-        IConnectionMultiplexer redis,
-        KafkaSerialization.JsonDeserializer<ChatMessageEvent> deserializer,
+        IConsumer<int, ChatMessageEvent> consumer,
         ILogger<KafkaConsumerService> logger)
     {
-        var config = new ConsumerConfig
-        {
-            BootstrapServers = configuration["Kafka:BootstrapServers"],
-            GroupId = "chat-consumer-group",
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false
-        };
-
+        _consumer = consumer;
         _logger = logger;
-        _redisDb = redis.GetDatabase();
-        _consumer = new ConsumerBuilder<Null, ChatMessageEvent>(config)
-            .SetValueDeserializer(deserializer)
-            .Build();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); 
+        
         _consumer.Subscribe("chat-messages");
         
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var result = _consumer.Consume(stoppingToken);
-                
-                if (result?.Message?.Value == null)
+                try
                 {
-                    _logger.LogWarning("Received null message from Kafka");
-                    continue;
+                    var result = _consumer.Consume(stoppingToken);
+                    if (result?.Message?.Value == null) continue;
+                    
+                    _logger.LogInformation($"Received message for chat {result.Message.Value.ChatId}");
                 }
-
-                var message = result.Message.Value;
-                _logger.LogInformation($"Received message for chat {message.ChatId}");
-
-                var redisKey = $"chat:{message.ChatId}:messages";
-                var serialized = JsonSerializer.Serialize(message);
-                await _redisDb.ListRightPushAsync(redisKey, serialized);
-                await _redisDb.ListTrimAsync(redisKey, -100, -1);
+                catch (ConsumeException e)
+                {
+                    _logger.LogError(e, $"Consume error: {e.Error.Reason}");
+                    if (e.Error.IsFatal)
+                    {
+                        _consumer.Unsubscribe();
+                        await Task.Delay(5000, stoppingToken);
+                        _consumer.Subscribe("chat-messages");
+                    }
+                }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing Kafka message");
-                await Task.Delay(1000, stoppingToken); // Задержка при ошибках
-            }
+        }
+        finally
+        {
+            _consumer.Close();
         }
     }
 }

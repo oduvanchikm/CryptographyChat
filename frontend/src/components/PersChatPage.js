@@ -25,7 +25,7 @@ function PersChatPage() {
 
     useEffect(() => {
         const fetchCurrentUser = async () => {
-            const response = await fetch('http://localhost:5078/api/auth/me', {
+            const response = await fetch('http://localhost:5079/api/auth/me', {
                 credentials: 'include'
             });
             const user = await response.json();
@@ -42,7 +42,7 @@ function PersChatPage() {
                 const dh = new DiffieHellman(P, G);
                 setDhInstance(dh);
 
-                await fetch(`http://localhost:5078/api/chat/${chatId}/updateKey`, {
+                await fetch(`http://localhost:5079/api/chat/${chatId}/updateKey`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
@@ -51,7 +51,7 @@ function PersChatPage() {
                     })
                 });
 
-                const keyResponse = await fetch(`http://localhost:5078/api/chat/${chatId}/participantKey`, {
+                const keyResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/participantKey`, {
                     credentials: 'include'
                 });
 
@@ -64,7 +64,7 @@ function PersChatPage() {
                     }
                 }
 
-                const messagesResponse = await fetch(`http://localhost:5078/api/chat/${chatId}/history?count=50`, {
+                const messagesResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
                     credentials: 'include'
                 });
                 setMessages(await messagesResponse.json());
@@ -84,7 +84,7 @@ function PersChatPage() {
 
         try {
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
-            await fetch(`http://localhost:5078/api/chat/${chatId}/send`, {
+            await fetch(`http://localhost:5079/api/chat/${chatId}/send`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
@@ -95,7 +95,7 @@ function PersChatPage() {
             });
 
             setNewMessage('');
-            const response = await fetch(`http://localhost:5078/api/chat/${chatId}/history?count=50`, {
+            const response = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
                 credentials: 'include'
             });
             setMessages(await response.json());

@@ -16,6 +16,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContextFactory<SecureChatDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.WebHost.UseUrls("http://0.0.0.0:8080");
+
 // CORS
 builder.Services.AddCors(options =>
 {
@@ -28,21 +30,18 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true));
 });
 
+// Redis
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-    ConnectionMultiplexer.Connect(builder.Configuration.GetValue<string>("Redis:Connection")));
+    ConnectionMultiplexer.Connect(builder.Configuration["Redis:Connection"]));
 
 // Services
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
-builder.Services.AddSingleton<KafkaConsumerService>();
 
-builder.Services.AddSingleton(new KafkaSerialization.JsonSerializer<ChatMessageEvent>());
-builder.Services.AddSingleton(new KafkaSerialization.JsonDeserializer<ChatMessageEvent>());
-
-builder.Services.AddSingleton<KafkaProducerService>();
-
-builder.Services.AddHostedService<KafkaConsumerService>();
+// Kafka Serialization
+builder.Services.AddSingleton<KafkaSerialization.JsonSerializer<ChatMessageEvent>>();
+builder.Services.AddSingleton<KafkaSerialization.JsonDeserializer<ChatMessageEvent>>();
 
 // Kafka Producer
 builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
@@ -64,7 +63,7 @@ builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
     };
 
     var producer = new ProducerBuilder<int, ChatMessageEvent>(config)
-        .SetValueSerializer(new KafkaSerialization.JsonSerializer<ChatMessageEvent>())
+        .SetValueSerializer(sp.GetRequiredService<KafkaSerialization.JsonSerializer<ChatMessageEvent>>())
         .SetLogHandler((_, message) =>
             Console.WriteLine($"Kafka Producer: {message.Level} {message.Facility} {message.Message}"))
         .SetErrorHandler((_, error) =>
@@ -75,28 +74,40 @@ builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
 });
 
 // Kafka Consumer
-builder.Services.AddSingleton<IConsumer<int, ChatMessageEvent>>(_ =>
-    new ConsumerBuilder<int, ChatMessageEvent>(new ConsumerConfig
-        {
-            BootstrapServers = "kafka:9092",
-            GroupId = "secure-chat-group",
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false,
+builder.Services.AddSingleton<IConsumer<int, ChatMessageEvent>>(sp =>
+{
+    var config = new ConsumerConfig
+    {
+        BootstrapServers = "kafka:9092",
+        GroupId = "secure-chat-group",
+        AutoOffsetReset = AutoOffsetReset.Earliest,
+        EnableAutoCommit = false,
 
-            Debug = "all",
-            LogQueue = true,
-            LogThreadName = true,
+        Debug = "all",
+        LogQueue = true,
+        LogThreadName = true,
 
-            SocketTimeoutMs = 60000,
-            SessionTimeoutMs = 30000,
-            MaxPollIntervalMs = 300000
-        })
-        .SetValueDeserializer(new KafkaSerialization.JsonDeserializer<ChatMessageEvent>())
+        SocketTimeoutMs = 60000,
+        SessionTimeoutMs = 30000,
+        MaxPollIntervalMs = 300000
+    };
+
+    var consumer = new ConsumerBuilder<int, ChatMessageEvent>(config)
+        .SetValueDeserializer(sp.GetRequiredService<KafkaSerialization.JsonDeserializer<ChatMessageEvent>>())
         .SetLogHandler((_, message) =>
             Console.WriteLine($"Kafka Consumer: {message.Level} {message.Facility} {message.Message}"))
         .SetErrorHandler((_, error) =>
             Console.WriteLine($"Kafka Consumer Error: {error.Code} {error.Reason}"))
-        .Build());
+        .Build();
+
+    return consumer;
+});
+
+// Kafka Services
+builder.Services.AddSingleton<KafkaConsumerService>();
+builder.Services.AddSingleton<KafkaProducerService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<ChatHistoryService>();
 
 // API и аутентификация
 builder.Services.AddEndpointsApiExplorer();
@@ -112,20 +123,21 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Убедитесь, что вызываете UseRouting перед UseEndpoints
-app.UseRouting();  // Добавьте этот вызов
+// using (var scope = app.Services.CreateScope())
+// {
+//     var dbContext = scope.ServiceProvider.GetRequiredService<SecureChatDbContext>();
+//     dbContext.Database.Migrate();
+// }
 
-// Убедитесь, что вызовы для аутентификации и авторизации идут после маршрутизации
+app.UseRouting();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowFrontend");
 
-// Добавьте аутентификацию и авторизацию в правильном порядке
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Маршруты для API
 app.MapControllers();
 
-// Запуск приложения
 app.Run();

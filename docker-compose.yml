@@ -17,8 +17,7 @@ services:
       context: .
       dockerfile: SecureChat.Server/Dockerfile
     ports:
-      - "5078:8080"    # возможно, это порт для API
-      - "5202:5202"    # добавляем порт Razor Pages
+      - "5079:8080"
     depends_on:
       - securechat.database
       - kafka

@@ -8,7 +8,7 @@ public interface IChatService
     Task<Chats> CreateChatAsync(int creatorId, int participantId, string username, string algorithm,
         string padding, string modeCipher);
     Task AddMessageAsync(int chatId, int senderId, string encryptedContent);
-    IAsyncEnumerable<ChatMessageEvent> StreamMessagesAsync(int chatId, CancellationToken ct = default);
+    // IAsyncEnumerable<ChatMessageEvent> StreamMessagesAsync(int chatId, CancellationToken ct = default);
     Task<IEnumerable<Chats>> GetUserChatsAsync(int userId);
     Task<bool> IsUserInChatAsync(int chatId, int userId);
 }

@@ -12,7 +12,7 @@ public class ChatService : IChatService
 {
     private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
     private readonly IProducer<int, ChatMessageEvent> _producer;
-    private readonly IConsumer<int, ChatMessageEvent> _consumer;
+    // private readonly IConsumer<int, ChatMessageEvent> _consumer;
     private readonly ILogger<ChatService> _logger;
 
     public ChatService(IDbContextFactory<SecureChatDbContext> dbContext, IProducer<int, ChatMessageEvent> producer,
@@ -20,10 +20,8 @@ public class ChatService : IChatService
     {
         _dbContextFactory = dbContext;
         _producer = producer;
-        _consumer = consumer;
+        // _consumer = consumer;
         _logger = logger;
-        
-        _consumer.Subscribe("chat-messages");
     }
 
     public async Task<Chats?> GetChatByIdAsync(int id)
@@ -85,26 +83,27 @@ public class ChatService : IChatService
             });
     }
 
-    public async IAsyncEnumerable<ChatMessageEvent> StreamMessagesAsync(
-        int chatId,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                var consumeResult = _consumer.Consume(ct);
-                if (consumeResult.Message.Value?.ChatId == chatId)
-                {
-                    yield return consumeResult.Message.Value;
-                }
-            }
-        }
-        finally
-        {
-            _consumer.Close();
-        }
-    }
+    // public async IAsyncEnumerable<ChatMessageEvent> StreamMessagesAsync(
+    //     int chatId,
+    //     [EnumeratorCancellation] CancellationToken ct = default)
+    // {
+    //     _consumer.Subscribe("chat-messages");
+    //     try
+    //     {
+    //         while (!ct.IsCancellationRequested)
+    //         {
+    //             var consumeResult = _consumer.Consume(ct);
+    //             if (consumeResult.Message.Value?.ChatId == chatId)
+    //             {
+    //                 yield return consumeResult.Message.Value;
+    //             }
+    //         }
+    //     }
+    //     finally
+    //     {
+    //         _consumer.Close();
+    //     }
+    // }
 
     public async Task<IEnumerable<Chats>> GetUserChatsAsync(int userId)
     {

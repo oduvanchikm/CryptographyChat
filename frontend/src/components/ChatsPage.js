@@ -26,7 +26,7 @@ function ChatsPage() {
 
     const fetchChats = useCallback(async () => {
         try {
-            const response = await fetch(`http://localhost:5078/api/chats/userschats`, {
+            const response = await fetch(`http://localhost:5079/api/chats/userschats`, {
                 credentials: 'include'
             });
             if (!response.ok) {
@@ -55,7 +55,7 @@ function ChatsPage() {
 
         try {
             const response = await fetch(
-                `http://localhost:5078/api/chats/users?search=${encodeURIComponent(query)}`,
+                `http://localhost:5079/api/chats/users?search=${encodeURIComponent(query)}`,
                 {
                     credentials: 'include',
                     headers: {
@@ -99,7 +99,7 @@ function ChatsPage() {
                 modeCipher: cryptoConfig.mode
             });
 
-            const response = await fetch(`http://localhost:5078/api/chat/create`, {
+            const response = await fetch(`http://localhost:5079/api/chat/create`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
