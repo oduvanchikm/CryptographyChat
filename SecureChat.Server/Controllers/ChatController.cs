@@ -38,8 +38,7 @@ public class ChatController : ControllerBase
         IUserService userService,
         IConnectionMultiplexer redis,
         KafkaProducerService kafkaProducer,
-        IEncryptionService encryptionService,
-        KafkaConsumerService kafkaConsumer
+        IEncryptionService encryptionService
         )
     {
         _chatService = chatService;
@@ -173,9 +172,11 @@ public class ChatController : ControllerBase
             chatId
         );
         
+        Console.WriteLine("3. [SendMessage] Encrypted content : " + BitConverter.ToString(encryptedContent));
+        
         // переводим результат из байтов в стрингу
         var base64EncryptedContent = Convert.ToBase64String(encryptedContent);
-        Console.WriteLine("3. [SendMessage] Encrypted Base64: " + base64EncryptedContent);
+        Console.WriteLine("4. [SendMessage] Encrypted Base64: " + base64EncryptedContent);
 
         // добавляем необходимые данные
         var messageEvent = new ChatMessageEvent

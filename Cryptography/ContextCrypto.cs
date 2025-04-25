@@ -12,16 +12,26 @@ public class ContextCrypto
     private const int BlockSize = 8;
     private byte[] _IV;
     private byte[] _delta;
+    private bool _isIVGenerated = false;
 
     public ContextCrypto(byte[] key, ISymmetricEncryptionAlgorithm encryptor,
         CipherMode.CipherMode.Mode cipherMode,
-        PaddingMode.PaddingMode.Mode paddingMode)
+        PaddingMode.PaddingMode.Mode paddingMode,
+        byte[] iv = null)
     {
         _cipherMode = cipherMode;
         _paddingMode = paddingMode;
         _encryptor = encryptor;
-        // _encryptor.SetKey(key);
         _IV = BitManipulation.Generate(8);
+        
+        _IV = iv ?? GenerateIV();
+        if (iv == null) _isIVGenerated = true;
+    }
+    
+    private byte[] GenerateIV()
+    {
+        _isIVGenerated = true;
+        return BitManipulation.Generate(8);
     }
     
     public byte[] GetIV() => _IV;

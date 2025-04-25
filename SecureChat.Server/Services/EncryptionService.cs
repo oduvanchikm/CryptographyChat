@@ -30,11 +30,22 @@ public class EncryptionService : IEncryptionService
         try
         {
             _logger.LogInformation($"[EncryptAsync] EncryptAsync start");
+            
             var context = CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId);
+            
             _logger.LogInformation($"[EncryptAsync] after create context");
+            
             var encryptedBytes = await context.EncryptAsync(data);
+            var iv = context.GetIV();
+            
             _logger.LogInformation($"[EncryptAsync] after encrypt method");
-            return encryptedBytes;
+            
+            var result = new byte[iv.Length + encryptedBytes.Length];
+            
+            Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
+            Buffer.BlockCopy(encryptedBytes, 0, result, iv.Length, encryptedBytes.Length);
+            
+            return result;
         }
         catch (Exception ex)
         {
@@ -47,8 +58,14 @@ public class EncryptionService : IEncryptionService
     {
         try
         {
-            var context = CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId);
-            return await context.DecryptAsync(data);
+            var iv = new byte[8];
+            Buffer.BlockCopy(data, 0, iv, 0, 8);
+            
+            var encryptedData = new byte[data.Length - 8];
+            Buffer.BlockCopy(data, 8, encryptedData, 0, encryptedData.Length);
+            
+            var context = CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, iv);
+            return await context.DecryptAsync(encryptedData);
         }
         catch (Exception ex)
         {
@@ -57,7 +74,7 @@ public class EncryptionService : IEncryptionService
     }
 
     private ContextCrypto CreateCryptoContext(string algorithm, PaddingMode paddingMode, CipherMode cipherMode,
-        int chatId)
+        int chatId, byte[] iv = null)
     {
         var publicKey = GetPublicKeyAsync(chatId).Result;
         
@@ -79,7 +96,7 @@ public class EncryptionService : IEncryptionService
             _ => throw new NotSupportedException($"Algorithm {algorithm} is not supported")
         };
 
-        return new ContextCrypto(key, encryptor, cipherMode, paddingMode);
+        return new ContextCrypto(key, encryptor, cipherMode, paddingMode, iv);
     }
 
     private async Task<byte[]> GetPublicKeyAsync(int chatId)
