@@ -1,6 +1,7 @@
 using Cryptography.Interfaces;
 
 namespace Cryptography.RC5;
+
 public class KeyExpansion : IKeyExpansion
 {
     private const int w = 32; // Длина слова в битах
@@ -10,21 +11,21 @@ public class KeyExpansion : IKeyExpansion
     private readonly int c; // Количество слов в ключе
     private readonly int t; // Длина расширенного ключа
 
-    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 }; 
-    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 }; 
+    private readonly byte[] Pw = { 0xB7, 0xE1, 0x51, 0x63 };
+    private readonly byte[] Qw = { 0x9E, 0x37, 0x79, 0xB9 };
 
     public KeyExpansion()
-    { 
-        c = (int)Math.Ceiling((double)b / u);  
-        t = 2 * (r + 1);  
+    {
+        c = (int)Math.Ceiling((double)b / u);
+        t = 2 * (r + 1);
     }
-    
+
     public byte[][] GenerateRoundKeys(byte[] key)
     {
         Console.WriteLine("key: " + BitConverter.ToString(key));
         if (key.Length != b)
             throw new ArgumentException($"Key length must be {b} bytes");
-        
+
         byte[][] K = new byte[c][];
         byte[][] S = new byte[t][];
         Console.WriteLine("1");
@@ -42,9 +43,10 @@ public class KeyExpansion : IKeyExpansion
 
         for (int i = 1; i < t; i++)
         {
-            S[i] = new byte[u];  
+            S[i] = new byte[u];
             S[i] = BitManipulation.AddBytes(S[i - 1], Qw);
         }
+
         Console.WriteLine("4");
 
         byte[] A = new byte[u];
@@ -61,15 +63,15 @@ public class KeyExpansion : IKeyExpansion
             if (K[jIndex] == null) K[jIndex] = new byte[u];
 
             S[iIndex] = BitManipulation.LeftRotateBytes(
-                BitManipulation.AddBytes(S[iIndex], BitManipulation.AddBytes(A, B)), 
-                3, 
+                BitManipulation.AddBytes(S[iIndex], BitManipulation.AddBytes(A, B)),
+                3,
                 w
             );
             A = S[iIndex];
             // Console.WriteLine("6,5");
 
             K[jIndex] = BitManipulation.LeftRotateBytes(
-                BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)), 
+                BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)),
                 BitConverter.ToInt32(A, 0) % w, w
             );
             B = K[jIndex];

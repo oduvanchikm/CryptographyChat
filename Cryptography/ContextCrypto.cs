@@ -23,17 +23,17 @@ public class ContextCrypto
         _paddingMode = paddingMode;
         _encryptor = encryptor;
         _IV = BitManipulation.Generate(8);
-        
+
         _IV = iv ?? GenerateIV();
         if (iv == null) _isIVGenerated = true;
     }
-    
+
     private byte[] GenerateIV()
     {
         _isIVGenerated = true;
         return BitManipulation.Generate(8);
     }
-    
+
     public byte[] GetIV() => _IV;
 
     public async Task<byte[]> EncryptAsync(byte[] data)

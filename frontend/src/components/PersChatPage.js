@@ -1,8 +1,8 @@
-import React, {useState, useEffect} from 'react';
-import {useParams, useNavigate} from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
-import {P, G} from './DH/constants';
+import { P, G } from './DH/constants';
 /* global BigInt */
 
 function bigIntToBase64(bigint) {
@@ -14,7 +14,7 @@ function bigIntToBase64(bigint) {
 }
 
 function PersChatPage() {
-    const {chatId} = useParams();
+    const { chatId } = useParams();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +24,7 @@ function PersChatPage() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const navigate = useNavigate();
 
+    // Функция для загрузки текущего пользователя
     useEffect(() => {
         const fetchCurrentUser = async () => {
             const response = await fetch('http://localhost:5079/api/auth/me', {
@@ -35,6 +36,42 @@ function PersChatPage() {
         fetchCurrentUser();
     }, []);
 
+    // Функция для загрузки сообщений
+    const loadMessages = useCallback(async (onlyNew = false) => {
+        try {
+            const response = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const newMessages = await response.json();
+
+                setMessages(prevMessages => {
+                    if (onlyNew) {
+                        // Добавляем только новые сообщения
+                        const existingIds = new Set(prevMessages.map(m =>
+                            `${m.sentAt}-${m.senderId}-${m.encryptedContent}`
+                        ));
+                        const filteredNewMessages = newMessages.filter(
+                            msg => !existingIds.has(`${msg.sentAt}-${msg.senderId}-${msg.encryptedContent}`)
+                        );
+                        return [...prevMessages, ...filteredNewMessages].sort((a, b) =>
+                            new Date(a.sentAt) - new Date(b.sentAt)
+                        );
+                    } else {
+                        // Первоначальная загрузка
+                        return newMessages.sort((a, b) =>
+                            new Date(a.sentAt) - new Date(b.sentAt)
+                        );
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load messages:', error);
+        }
+    }, [chatId]);
+
+    // Инициализация Diffie-Hellman и загрузка сообщений
     useEffect(() => {
         if (!currentUserId) return;
 
@@ -60,7 +97,7 @@ function PersChatPage() {
 
                 await fetch(`http://localhost:5079/api/chat/${chatId}/updateKey`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
                         publicKey: publicKeyBase64
@@ -72,7 +109,7 @@ function PersChatPage() {
                 });
 
                 if (keyResponse.ok) {
-                    const {publicKey} = await keyResponse.json();
+                    const { publicKey } = await keyResponse.json();
                     if (publicKey) {
                         try {
                             const otherPubKey = base64ToBigInt(publicKey);
@@ -87,12 +124,8 @@ function PersChatPage() {
                     }
                 }
 
-                const messagesResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
-                    credentials: 'include'
-                });
-                if (messagesResponse.ok) {
-                    setMessages(await messagesResponse.json());
-                }
+                // Первоначальная загрузка сообщений
+                await loadMessages(false);
 
             } catch (error) {
                 console.error('Initialization error:', error);
@@ -103,7 +136,18 @@ function PersChatPage() {
         };
 
         initDH();
-    }, [chatId, currentUserId]);
+    }, [chatId, currentUserId, loadMessages]);
+
+    // Периодическая проверка новых сообщений
+    useEffect(() => {
+        if (!chatId || !currentUserId) return;
+
+        const intervalId = setInterval(() => {
+            loadMessages(true); // Загружаем только новые сообщения
+        }, 3000);
+
+        return () => clearInterval(intervalId);
+    }, [chatId, currentUserId, loadMessages]);
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !sharedSecret) return;
@@ -112,7 +156,7 @@ function PersChatPage() {
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
             await fetch(`http://localhost:5079/api/chat/${chatId}/send`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                     message: newMessage,
@@ -121,10 +165,8 @@ function PersChatPage() {
             });
 
             setNewMessage('');
-            const response = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
-                credentials: 'include'
-            });
-            setMessages(await response.json());
+            // После отправки загружаем только новые сообщения
+            await loadMessages(true);
         } catch (error) {
             console.error('Failed to send message:', error);
         }
@@ -152,7 +194,8 @@ function PersChatPage() {
                     const decryptedContent = decryptMessage(message.encryptedContent);
 
                     return (
-                        <div key={index} className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
+                        <div key={`${message.sentAt}-${message.senderId}-${index}`}
+                             className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
                             <div className={`message ${isCurrentUser ? 'sent' : 'received'}`}>
                                 <div className="message-header">
                                     <span className="message-username">

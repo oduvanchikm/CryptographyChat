@@ -17,14 +17,14 @@ public class RC5 : ISymmetricEncryptionAlgorithm
         _S = _keyExpansion.GenerateRoundKeys(key);
         t = 2 * (r + 1);
     }
-    
+
     public byte[] Encrypt(byte[] data)
     {
         if (data == null) throw new ArgumentNullException(nameof(data));
         if (data.Length == 0) return Array.Empty<byte>();
 
-        int paddedLength = data.Length % BlockSize == 0 
-            ? data.Length 
+        int paddedLength = data.Length % BlockSize == 0
+            ? data.Length
             : data.Length + (BlockSize - data.Length % BlockSize);
         byte[] paddedData = new byte[paddedLength];
         Array.Copy(data, paddedData, data.Length);
@@ -48,16 +48,16 @@ public class RC5 : ISymmetricEncryptionAlgorithm
             {
                 A = BitManipulation.AddBytes(
                     BitManipulation.LeftRotateBytes(
-                        BitManipulation.Xor(A, B), 
-                        BitConverter.ToInt32(B, 0), 
+                        BitManipulation.Xor(A, B),
+                        BitConverter.ToInt32(B, 0),
                         w),
                     _S[2 * i]
                 );
 
                 B = BitManipulation.AddBytes(
                     BitManipulation.LeftRotateBytes(
-                        BitManipulation.Xor(B, A), 
-                        BitConverter.ToInt32(A, 0), 
+                        BitManipulation.Xor(B, A),
+                        BitConverter.ToInt32(A, 0),
                         w),
                     _S[2 * i + 1]
                 );
@@ -74,7 +74,7 @@ public class RC5 : ISymmetricEncryptionAlgorithm
     {
         if (data == null) throw new ArgumentNullException(nameof(data));
         if (data.Length == 0) return Array.Empty<byte>();
-        if (data.Length % BlockSize != 0) 
+        if (data.Length % BlockSize != 0)
             throw new ArgumentException("Data length must be a multiple of block size", nameof(data));
 
         byte[] decrypted = new byte[data.Length];
@@ -93,16 +93,16 @@ public class RC5 : ISymmetricEncryptionAlgorithm
             {
                 B = BitManipulation.Xor(
                     BitManipulation.RightRotateBytes(
-                        BitManipulation.SubBytes(B, _S[2 * i + 1]), 
-                        BitConverter.ToInt32(A, 0), 
+                        BitManipulation.SubBytes(B, _S[2 * i + 1]),
+                        BitConverter.ToInt32(A, 0),
                         w),
                     A
                 );
 
                 A = BitManipulation.Xor(
                     BitManipulation.RightRotateBytes(
-                        BitManipulation.SubBytes(A, _S[2 * i]), 
-                        BitConverter.ToInt32(B, 0), 
+                        BitManipulation.SubBytes(A, _S[2 * i]),
+                        BitConverter.ToInt32(B, 0),
                         w),
                     B
                 );

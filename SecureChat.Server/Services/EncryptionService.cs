@@ -10,35 +10,29 @@ using PaddingMode = Cryptography.PaddingMode.PaddingMode.Mode;
 
 namespace SecureChat.Server.Services;
 
-public class EncryptionService : IEncryptionService
+public class EncryptionService(
+    IConnectionMultiplexer redis,
+    ILogger<EncryptionService> logger)
+    : IEncryptionService
 {
-    private readonly IDatabase _redisDb;
-    private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<EncryptionService> _logger;
-
-    public EncryptionService(IConnectionMultiplexer redis,
-        ILogger<EncryptionService> logger)
-    {
-        _redis = redis;
-        _redisDb = redis.GetDatabase();
-        _logger = logger;
-    }
+    private readonly IDatabase _redisDb = redis.GetDatabase();
+    private readonly IConnectionMultiplexer _redis = redis;
 
     public async Task<byte[]> EncryptAsync(byte[] data, string algorithm, PaddingMode paddingMode, CipherMode cipherMode, 
         int chatId, int senderId)
     {
         try
         {
-            _logger.LogInformation($"[EncryptAsync] EncryptAsync start");
+            logger.LogInformation($"[EncryptAsync] EncryptAsync start");
             
             var context = await CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, senderId);
             
-            _logger.LogInformation($"[EncryptAsync] after create context");
+            logger.LogInformation($"[EncryptAsync] after create context");
             
             var encryptedBytes = await context.EncryptAsync(data);
             var iv = context.GetIV();
             
-            _logger.LogInformation($"[EncryptAsync] after encrypt method");
+            logger.LogInformation($"[EncryptAsync] after encrypt method");
             
             var result = new byte[iv.Length + encryptedBytes.Length];
             

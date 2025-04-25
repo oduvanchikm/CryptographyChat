@@ -17,8 +17,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContextFactory<SecureChatDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// builder.WebHost.UseUrls("http://0.0.0.0:8080");
-
 // CORS
 builder.Services.AddCors(options =>
 {
@@ -40,14 +38,8 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 
-// builder.Services.AddScoped<IChatService, ChatService>();
-// builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<KafkaProducerService>();
 builder.Services.AddSingleton<KafkaConsumerService>();
-
-// Kafka Serialization
-// builder.Services.AddSingleton<KafkaSerialization.JsonSerializer<ChatMessageEvent>>();
-// builder.Services.AddSingleton<KafkaSerialization.JsonDeserializer<ChatMessageEvent>>();
 
 // Kafka Producer
 builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
@@ -103,10 +95,6 @@ builder.Services.AddSingleton<IConsumer<int, ChatMessageEvent>>(_ =>
             Console.WriteLine($"Kafka Consumer Error: {error.Code} {error.Reason}"))
         .Build());
 
-// Kafka Services
-// builder.Services.AddSingleton<KafkaConsumerService>(); 
-// builder.Services.AddSingleton<KafkaProducerService>();
-
 // API и аутентификация
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -124,9 +112,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<SecureChatDbContext>();
-    
+
     var pendingMigrations = dbContext.Database.GetPendingMigrations();
-    
+
     if (pendingMigrations.Any())
     {
         dbContext.Database.Migrate();
@@ -144,7 +132,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 
 var kafkaConfig = new AdminClientConfig
 {
@@ -176,6 +163,5 @@ catch (CreateTopicsException ex)
         throw;
     }
 }
-
 
 app.Run();

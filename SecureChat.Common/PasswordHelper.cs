@@ -16,16 +16,10 @@ public class PasswordHelper
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < hashBytes.Length; i++)
             {
-                builder.Append(hashBytes[i].ToString("x2")); 
+                builder.Append(hashBytes[i].ToString("x2"));
             }
 
             return builder.ToString();
         }
-    }
-
-    public static bool VerifyPassword(string password, string hash)
-    {
-        string hashedPassword = HashPassword(password);
-        return hashedPassword == hash;
     }
 }

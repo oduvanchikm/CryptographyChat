@@ -133,7 +133,7 @@ public class BitManipulation
 
         return result;
     }
-    
+
     public static byte[] Generate(int size)
     {
         byte[] iv = new byte[size];
@@ -141,6 +141,7 @@ public class BitManipulation
         {
             rng.GetBytes(iv);
         }
+
         return iv;
     }
 }

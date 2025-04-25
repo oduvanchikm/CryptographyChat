@@ -12,10 +12,10 @@ public class KafkaConsumerService : BackgroundService
 {
     private readonly IConsumer<Null, string> _consumer;
     private readonly string _topic;
-    private readonly StackExchange.Redis.IDatabase _redisDb;
+    private readonly IDatabase _redisDb;
     private readonly ILogger<KafkaConsumerService> _logger;
-    
-    public KafkaConsumerService(IConfiguration configuration, 
+
+    public KafkaConsumerService(IConfiguration configuration,
         IConnectionMultiplexer redis,
         ILogger<KafkaConsumerService> logger)
     {
@@ -32,7 +32,7 @@ public class KafkaConsumerService : BackgroundService
         _consumer = new ConsumerBuilder<Null, string>(config).Build();
         _consumer.Subscribe(_topic);
     }
-    
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -51,7 +51,7 @@ public class KafkaConsumerService : BackgroundService
                     var serialized = JsonSerializer.Serialize(message);
 
                     await _redisDb.ListRightPushAsync(redisKey, serialized);
-                    await _redisDb.ListTrimAsync(redisKey, -100, -1); 
+                    await _redisDb.ListTrimAsync(redisKey, -100, -1);
                 }
             }
             catch (Exception ex)
