@@ -1,56 +1,69 @@
+using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SecureChat.Common.Models;
+using StackExchange.Redis;
 
 namespace SecureChat.Broker.Services;
 
 public class KafkaConsumerService : BackgroundService
 {
-    private readonly IConsumer<int, ChatMessageEvent> _consumer;
+    private readonly IConsumer<Null, string> _consumer;
+    private readonly string _topic;
+    private readonly StackExchange.Redis.IDatabase _redisDb;
     private readonly ILogger<KafkaConsumerService> _logger;
     
-    public KafkaConsumerService(
-        IConsumer<int, ChatMessageEvent> consumer,
+    public KafkaConsumerService(IConfiguration configuration, 
+        IConnectionMultiplexer redis,
         ILogger<KafkaConsumerService> logger)
     {
-        _consumer = consumer;
-        _logger = logger;
-    }
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = configuration["Kafka:BootstrapServers"],
+            GroupId = "chat-consumer-group",
+            AutoOffsetReset = AutoOffsetReset.Earliest
+        };
 
+        _logger = logger;
+        _topic = configuration["Kafka:Topic"];
+        _redisDb = redis.GetDatabase();
+        _consumer = new ConsumerBuilder<Null, string>(config).Build();
+        _consumer.Subscribe(_topic);
+    }
+    
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); 
-        
-        _consumer.Subscribe("chat-messages");
-        
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                try
+                var result = _consumer.Consume(stoppingToken);
+                var rawMessage = result.Message.Value;
+
+                _logger.LogInformation($"Consumed message: {rawMessage}");
+
+                var message = JsonSerializer.Deserialize<ChatMessageEvent>(rawMessage);
+                if (message != null)
                 {
-                    var result = _consumer.Consume(stoppingToken);
-                    if (result?.Message?.Value == null) continue;
-                    
-                    _logger.LogInformation($"Received message for chat {result.Message.Value.ChatId}");
-                }
-                catch (ConsumeException e)
-                {
-                    _logger.LogError(e, $"Consume error: {e.Error.Reason}");
-                    if (e.Error.IsFatal)
-                    {
-                        _consumer.Unsubscribe();
-                        await Task.Delay(5000, stoppingToken);
-                        _consumer.Subscribe("chat-messages");
-                    }
+                    var redisKey = $"chat:{message.ChatId}:messages";
+                    var serialized = JsonSerializer.Serialize(message);
+
+                    await _redisDb.ListRightPushAsync(redisKey, serialized);
+                    await _redisDb.ListTrimAsync(redisKey, -100, -1); 
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while consuming Kafka message");
+            }
         }
-        finally
-        {
-            _consumer.Close();
-        }
+    }
+
+    public override void Dispose()
+    {
+        _consumer.Close();
+        base.Dispose();
     }
 }

@@ -30,7 +30,6 @@ public class ChatController : ControllerBase
     private readonly IConnectionMultiplexer _redis;
     private readonly KafkaProducerService _kafkaProducer;
     private readonly IEncryptionService _encryptionService;
-    private readonly ChatHistoryService _chatHistoryService;
 
     public ChatController(
         IChatService chatService,
@@ -40,7 +39,7 @@ public class ChatController : ControllerBase
         IConnectionMultiplexer redis,
         KafkaProducerService kafkaProducer,
         IEncryptionService encryptionService,
-        ChatHistoryService chatHistoryService
+        KafkaConsumerService kafkaConsumer
         )
     {
         _chatService = chatService;
@@ -51,7 +50,6 @@ public class ChatController : ControllerBase
         _redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
         _encryptionService = encryptionService;
-        _chatHistoryService = chatHistoryService;
     }
 
     [HttpPost("create")]
@@ -187,9 +185,13 @@ public class ChatController : ControllerBase
             EncryptedContent = base64EncryptedContent,
             SentAt = DateTime.UtcNow
         };
-
+        
         // отправляем в кафку
         await _kafkaProducer.SendMessage(messageEvent);
+
+        var key = $"chat:{chatId}:messages";
+        var json = JsonSerializer.Serialize(messageEvent);
+        await _redisDb.ListRightPushAsync(key, json);
 
         return Ok();
     }
@@ -197,25 +199,40 @@ public class ChatController : ControllerBase
     [HttpGet("{chatId}/history")]
     public async Task<IActionResult> GetHistory(int chatId, [FromQuery] int count = 50)
     {
+        _logger.LogInformation($"[GetHistory] ChatId: {chatId}");
         var userId = GetCurrentUserId();
         await using var context = _dbContextFactory.CreateDbContext();
     
         if (!await _chatService.IsUserInChatAsync(chatId, userId))
         {
+            _logger.LogInformation($"[GetHistory] User {userId} not in chat");
             return Forbid();
         }
     
         var chat = await _chatService.GetChatByIdAsync(chatId);
         if (chat == null)
         {
+            _logger.LogInformation($"[GetHistory] Chat {chatId} not in chat");
             return NotFound(new { message = "Chat not found" });
         }
         
-        var messages = _chatHistoryService.GetChatHistory(chatId, count);
+        var messages = await _redisDb.ListRangeAsync($"chat:{chatId}:messages", -count, -1);
+        if (!messages.Any())
+        {
+            _logger.LogInformation($"[GetHistory] Chat {chatId} has no messages");
+        }
+        
+        _logger.LogInformation("be1");
+        
+        var messageList = messages
+            .Select(m => JsonSerializer.Deserialize<ChatMessageEvent>(m!))
+            .Where(m => m != null)
+            .ToList();
+        _logger.LogInformation("be2");
     
         var enrichedMessages = new List<MessageWithSenderInfo>();
     
-        foreach (var message in messages)
+        foreach (var message in messageList)
         {
             var senderUser = await _userService.GetUserByIdAsync(message.SenderId);
             

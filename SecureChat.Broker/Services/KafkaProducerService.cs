@@ -8,29 +8,40 @@ namespace SecureChat.Broker.Services;
 
 public class KafkaProducerService
 {
-    private readonly IProducer<int, ChatMessageEvent> _producer;
+    private readonly IProducer<Null, string> _producer;
+    private readonly string _topic;
     private readonly ILogger<KafkaProducerService> _logger;
     
-    public KafkaProducerService(
-        IProducer<int, ChatMessageEvent> producer,
-        ILogger<KafkaProducerService> logger)
+    public KafkaProducerService(IConfiguration configuration, ILogger<KafkaProducerService> logger)
     {
-        _producer = producer;
+        var config = new ProducerConfig
+        {
+            BootstrapServers = configuration["Kafka:BootstrapServers"]
+        };
+        
         _logger = logger;
+        _topic = configuration["Kafka:Topic"];
+        _producer = new ProducerBuilder<Null, string>(config).Build();
     }
 
     public async Task SendMessage(ChatMessageEvent message)
     {
+        var json = JsonSerializer.Serialize(message);
+
         try
         {
-            var result = await _producer.ProduceAsync("chat-messages", 
-                new Message<int, ChatMessageEvent> { Value = message });
-            
-            _logger.LogInformation($"Message sent to partition {result.Partition}, offset {result.Offset}");
+            _logger.LogInformation($"Sending message: {json}");
+            var send = await _producer.ProduceAsync(_topic, new Message<Null, string> { Value = json });
+            _logger.LogInformation($"Message sent to {send.TopicPartitionOffset}");
         }
-        catch (Exception ex)
+        catch (ProduceException<Null, string> e)
         {
-            _logger.LogError(ex, "Failed to send message to Kafka");
+            _logger.LogError("Kafka send error: {Reason}", e.Error.Reason);
         }
+    }
+    
+    public void Dispose()
+    {
+        _producer.Dispose();
     }
 }
