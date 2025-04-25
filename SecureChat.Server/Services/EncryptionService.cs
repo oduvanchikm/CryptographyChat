@@ -25,13 +25,13 @@ public class EncryptionService : IEncryptionService
     }
 
     public async Task<byte[]> EncryptAsync(byte[] data, string algorithm, PaddingMode paddingMode, CipherMode cipherMode, 
-        int chatId)
+        int chatId, int senderId)
     {
         try
         {
             _logger.LogInformation($"[EncryptAsync] EncryptAsync start");
             
-            var context = CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId);
+            var context = await CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, senderId);
             
             _logger.LogInformation($"[EncryptAsync] after create context");
             
@@ -54,7 +54,7 @@ public class EncryptionService : IEncryptionService
     }
 
     public async Task<byte[]> DecryptAsync(byte[] data, string algorithm, PaddingMode paddingMode, CipherMode cipherMode, 
-        int chatId)
+        int chatId, int senderId)
     {
         try
         {
@@ -64,7 +64,7 @@ public class EncryptionService : IEncryptionService
             var encryptedData = new byte[data.Length - 8];
             Buffer.BlockCopy(data, 8, encryptedData, 0, encryptedData.Length);
             
-            var context = CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, iv);
+            var context = await CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, senderId, iv);
             return await context.DecryptAsync(encryptedData);
         }
         catch (Exception ex)
@@ -73,10 +73,10 @@ public class EncryptionService : IEncryptionService
         }
     }
 
-    private ContextCrypto CreateCryptoContext(string algorithm, PaddingMode paddingMode, CipherMode cipherMode,
-        int chatId, byte[] iv = null)
+    private async Task<ContextCrypto> CreateCryptoContext(string algorithm, PaddingMode paddingMode, CipherMode cipherMode,
+        int chatId, int senderId, byte[] iv = null)
     {
-        var publicKey = GetPublicKeyAsync(chatId).Result;
+        var publicKey = await GetPublicKeyAsync(chatId, senderId);
         
         Console.WriteLine($"[ CreateCryptoContext ] {publicKey.Length}");
         Console.WriteLine($"[ CreateCryptoContext ] 2 {publicKey.Take(16).ToArray().Length}");
@@ -99,9 +99,9 @@ public class EncryptionService : IEncryptionService
         return new ContextCrypto(key, encryptor, cipherMode, paddingMode, iv);
     }
 
-    private async Task<byte[]> GetPublicKeyAsync(int chatId)
+    private async Task<byte[]> GetPublicKeyAsync(int chatId, int senderId)
     {
-        var redisKey = $"chat:{chatId}:publicKey";
+        var redisKey = $"chat:{chatId}:user:{senderId}:publicKey";
         var publicKey = await _redisDb.StringGetAsync(redisKey);
 
         if (!IsBase64String(publicKey))

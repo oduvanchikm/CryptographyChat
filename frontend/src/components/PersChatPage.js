@@ -3,6 +3,7 @@ import {useParams, useNavigate} from 'react-router-dom';
 import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
 import {P, G} from './DH/constants';
+/* global BigInt */
 
 function bigIntToBase64(bigint) {
     const hex = bigint.toString(16);
@@ -37,17 +38,32 @@ function PersChatPage() {
     useEffect(() => {
         if (!currentUserId) return;
 
+        function base64ToBigInt(base64) {
+            try {
+                const binaryStr = atob(base64);
+                const hex = Array.from(binaryStr)
+                    .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                    .join('');
+                return BigInt('0x' + hex);
+            } catch (e) {
+                console.error('Error converting base64 to BigInt:', e);
+                throw new Error('Invalid public key format');
+            }
+        }
+
         const initDH = async () => {
             try {
                 const dh = new DiffieHellman(P, G);
                 setDhInstance(dh);
+
+                const publicKeyBase64 = bigIntToBase64(dh.publicKey);
 
                 await fetch(`http://localhost:5079/api/chat/${chatId}/updateKey`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
                     body: JSON.stringify({
-                        publicKey: dh.publicKey.toString()
+                        publicKey: publicKeyBase64
                     })
                 });
 
@@ -58,19 +74,29 @@ function PersChatPage() {
                 if (keyResponse.ok) {
                     const {publicKey} = await keyResponse.json();
                     if (publicKey) {
-                        setOtherPublicKey(publicKey);
-                        const secret = dh.computeSharedSecret(publicKey);
-                        setSharedSecret(secret);
+                        try {
+                            const otherPubKey = base64ToBigInt(publicKey);
+                            const secret = dh.computeSharedSecret(otherPubKey);
+                            setSharedSecret(secret);
+                            setOtherPublicKey(publicKey);
+                        } catch (e) {
+                            console.error('Error computing shared secret:', e);
+                            setTimeout(initDH, 5000);
+                            return;
+                        }
                     }
                 }
 
                 const messagesResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
                     credentials: 'include'
                 });
-                setMessages(await messagesResponse.json());
+                if (messagesResponse.ok) {
+                    setMessages(await messagesResponse.json());
+                }
 
             } catch (error) {
                 console.error('Initialization error:', error);
+                setTimeout(initDH, 5000);
             } finally {
                 setIsLoading(false);
             }

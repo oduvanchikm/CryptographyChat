@@ -146,8 +146,8 @@ public class ChatController : ControllerBase
             return Forbid();
         }
 
-        var redisKey = $"chat:{chatId}:publicKey";
-        await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromMinutes(10));
+        var redisKey = $"chat:{chatId}:user:{senderId}:publicKey";
+        await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromHours(24));
 
         var chat = await _chatService.GetChatByIdAsync(chatId);
         if (chat == null)
@@ -169,7 +169,8 @@ public class ChatController : ControllerBase
             chat.Algorithm,
             PaddingMode.ToPaddingMode(chat.Padding),
             CipherMode.ToCipherMode(chat.ModeCipher),
-            chatId
+            chatId,
+            senderId
         );
         
         Console.WriteLine("3. [SendMessage] Encrypted content : " + BitConverter.ToString(encryptedContent));
@@ -253,7 +254,8 @@ public class ChatController : ControllerBase
                     chat.Algorithm,
                     PaddingMode.ToPaddingMode(chat.Padding),
                     CipherMode.ToCipherMode(chat.ModeCipher),
-                    chatId
+                    chatId,
+                    message.SenderId
                 );
     
                 // декодируем оригинальное сообщение из байтов
@@ -323,9 +325,20 @@ public class ChatController : ControllerBase
         {
             return Forbid();
         }
+        
+        if (string.IsNullOrEmpty(request.PublicKey) || !IsBase64(request.PublicKey))
+        {
+            return BadRequest(new { message = "Invalid public key format" });
+        }
 
         var redisKey = $"chat:{chatId}:user:{userId}:publicKey";
         await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromHours(24));
         return Ok();
+    }
+    
+    private bool IsBase64(string base64)
+    {
+        Span<byte> buffer = new Span<byte>(new byte[base64.Length]);
+        return Convert.TryFromBase64String(base64, buffer, out _);
     }
 }
