@@ -12,15 +12,32 @@ function ChatsPage() {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const chatsContainerRef = useRef(null);
 
+    const [currentUser, setCurrentUser] = useState(null);
+
     const CRYPTO_ALGORITHMS = ['RC5', 'MARS'];
     const PADDING_OPTIONS = ['PKCS7', 'Zeros', 'ANSIX923', 'ISO10126'];
-    const MODE_OPTIONS = ['CBC', 'ECB', 'CFB', 'OFB', 'CTR'];
+    const MODE_OPTIONS = ['CBC', 'CFB', 'ECB', 'OFB', 'CTR', 'PCBC', 'RD'];
 
     const [cryptoConfig, setCryptoConfig] = useState({
         algorithm: 'RC5',
         padding: 'PKCS7',
         mode: 'CBC'
     });
+
+    const fetchCurrentUser = useCallback(async () => {
+        try {
+            const response = await fetch(`http://localhost:5079/api/auth/me`, {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                throw new Error('Error');
+            }
+            const data = await response.json();
+            setCurrentUser(data);
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    }, []);
 
     const navigate = useNavigate();
 
@@ -41,8 +58,9 @@ function ChatsPage() {
     }, []);
 
     useEffect(() => {
+        fetchCurrentUser();
         fetchChats().catch(console.error);
-    }, [fetchChats]);
+    }, [fetchChats, fetchCurrentUser]);
 
     const searchUsers = useCallback(async (query) => {
         if (!query.trim()) {
@@ -131,7 +149,6 @@ function ChatsPage() {
         navigate(`/chat/${id}`);
     }, [navigate]);
 
-    // Улучшенный рендеринг настроек шифрования
     const renderCryptoSettings = () => (
         <div className="crypto-settings">
             <div className="crypto-option">
@@ -180,22 +197,42 @@ function ChatsPage() {
             <div className="app-header">
                 <div className="header-content">
                     <h1 className="app-title">SecureChat</h1>
-                    <div className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}>
-                        <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setIsSearchFocused(false)}
-                            disabled={isLoading || creatingChat}
-                            className="search-input"
-                        />
-                        {isLoading && (
-                            <div className="search-loader">
-                                <div className="loader"></div>
+                    <div className="header-right-section">
+                        {currentUser && (
+                            <div className="user-profile">
+                                <div className="user-info">
+                                    <span className="username">{currentUser.username}</span>
+                                    <div className="avatar-container">
+                                        <img
+                                            src={`https://i.pravatar.cc/150?u=${currentUser.id}`}
+                                            alt={currentUser.username}
+                                            className="user-avatar"
+                                            onError={(e) => {
+                                                e.target.src = 'https://via.placeholder.com/150';
+                                            }}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         )}
+
+                        <div className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}>
+                            <input
+                                type="text"
+                                placeholder="Search users..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onFocus={() => setIsSearchFocused(true)}
+                                onBlur={() => setIsSearchFocused(false)}
+                                disabled={isLoading || creatingChat}
+                                className="search-input"
+                            />
+                            {isLoading && (
+                                <div className="search-loader">
+                                    <div className="loader"></div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

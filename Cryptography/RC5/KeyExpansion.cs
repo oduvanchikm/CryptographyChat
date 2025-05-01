@@ -35,30 +35,23 @@ public class KeyExpansion : IKeyExpansion
             K[i] = new byte[u];
             Array.Copy(key, i * u, K[i], 0, u);
         }
-        // Console.WriteLine("2");
 
         S[0] = new byte[u];
         Array.Copy(Pw, 0, S[0], 0, u);
-        // Console.WriteLine("3");
 
         for (int i = 1; i < t; i++)
         {
             S[i] = new byte[u];
             S[i] = BitManipulation.AddBytes(S[i - 1], Qw);
         }
-
-        Console.WriteLine("4");
-
+        
         byte[] A = new byte[u];
         byte[] B = new byte[u];
         int iIndex = 0, jIndex = 0;
         int maxIter = 3 * Math.Max(t, c);
-        // Console.WriteLine("5");
 
         for (int k = 0; k < maxIter; k++)
         {
-            // Console.WriteLine("6");
-
             if (S[iIndex] == null) S[iIndex] = new byte[u];
             if (K[jIndex] == null) K[jIndex] = new byte[u];
 
@@ -68,19 +61,16 @@ public class KeyExpansion : IKeyExpansion
                 w
             );
             A = S[iIndex];
-            // Console.WriteLine("6,5");
 
             K[jIndex] = BitManipulation.LeftRotateBytes(
                 BitManipulation.AddBytes(K[jIndex], BitManipulation.AddBytes(A, B)),
                 BitConverter.ToInt32(A, 0) % w, w
             );
             B = K[jIndex];
-            // Console.WriteLine("7");
 
             iIndex = (iIndex + 1) % t;
             jIndex = (jIndex + 1) % c;
         }
-        // Console.WriteLine("8");
 
         return S;
     }

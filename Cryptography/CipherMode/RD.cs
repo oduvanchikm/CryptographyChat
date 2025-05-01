@@ -5,11 +5,20 @@ namespace Cryptography.CipherMode;
 
 public class RD
 {
-    private const int BlockSize = 8;
+    private static int BlockSize;
+    private static int GetBlockSize(ISymmetricEncryptionAlgorithm encryptor)
+    {
+        return encryptor switch
+        {
+            RC5.RC5 _ => 8,
+            MARS.MARS _ => 16
+        };
+    }
 
     public static (byte[] ciphertext, byte[] deltas) EncryptRD(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
         Console.WriteLine("Start RD Encryption");
+        BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] deltas = new byte[data.Length];
         byte[] previousCipher = IV;

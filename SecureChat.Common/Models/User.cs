@@ -11,5 +11,5 @@ public class User
 
     public DateTimeOffset LastLogin { get; set; }
     public IEnumerable<ChatUser> ChatUser { get; set; }
-    public IEnumerable<DhPublicKey> DhPublicKey { get; set; }
+    // public IEnumerable<DhPublicKey> DhPublicKey { get; set; }
 }

@@ -103,12 +103,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(1);
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.Name = "SecureChat.Auth";
+        options.SlidingExpiration = true;
     });
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
+// Migrations
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<SecureChatDbContext>();
@@ -120,7 +125,6 @@ using (var scope = app.Services.CreateScope())
         dbContext.Database.Migrate();
     }
 }
-
 
 app.UseRouting();
 

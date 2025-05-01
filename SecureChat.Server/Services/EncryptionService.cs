@@ -52,11 +52,18 @@ public class EncryptionService(
     {
         try
         {
-            var iv = new byte[8];
-            Buffer.BlockCopy(data, 0, iv, 0, 8);
+            int ivLength = algorithm.ToUpper() switch
+            {
+                "RC5" => 8,
+                "MARS" => 16,
+                _ => throw new NotSupportedException($"Algorithm {algorithm} is not supported")
+            };
             
-            var encryptedData = new byte[data.Length - 8];
-            Buffer.BlockCopy(data, 8, encryptedData, 0, encryptedData.Length);
+            var iv = new byte[ivLength];
+            Buffer.BlockCopy(data, 0, iv, 0, ivLength);
+            
+            var encryptedData = new byte[data.Length - ivLength];
+            Buffer.BlockCopy(data, ivLength, encryptedData, 0, encryptedData.Length);
             
             var context = await CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, senderId, iv);
             return await context.DecryptAsync(encryptedData);
@@ -78,7 +85,7 @@ public class EncryptionService(
         byte[] key = algorithm.ToUpper() switch
         {
             "RC5" => publicKey.Take(16).ToArray(),
-            "MARS" => publicKey,
+            "MARS" => publicKey.Take(16).ToArray(),
             _ => throw new NotSupportedException($"Algorithm {algorithm} is not supported")
         };
 
@@ -112,5 +119,3 @@ public class EncryptionService(
         return Convert.TryFromBase64String(s, buffer, out _);
     }
 }
-
-

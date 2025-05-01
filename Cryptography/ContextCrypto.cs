@@ -9,7 +9,7 @@ public class ContextCrypto
     private readonly ISymmetricEncryptionAlgorithm _encryptor;
     private readonly CipherMode.CipherMode.Mode _cipherMode;
     private readonly PaddingMode.PaddingMode.Mode _paddingMode;
-    private const int BlockSize = 8;
+    private readonly int BlockSize;
     private byte[] _IV;
     private byte[] _delta;
     private bool _isIVGenerated = false;
@@ -19,10 +19,17 @@ public class ContextCrypto
         PaddingMode.PaddingMode.Mode paddingMode,
         byte[] iv = null)
     {
+        BlockSize = encryptor switch
+        {
+            RC5.RC5 _ => 8,    // 64 бита для RC5
+            MARS.MARS _ => 16  // 128 бит для MARS
+        };
+        
         _cipherMode = cipherMode;
         _paddingMode = paddingMode;
         _encryptor = encryptor;
-        _IV = BitManipulation.Generate(8);
+        
+        // _IV = BitManipulation.Generate();
 
         _IV = iv ?? GenerateIV();
         if (iv == null) _isIVGenerated = true;
@@ -31,16 +38,20 @@ public class ContextCrypto
     private byte[] GenerateIV()
     {
         _isIVGenerated = true;
-        return BitManipulation.Generate(8);
+        return BitManipulation.Generate(BlockSize);
     }
 
     public byte[] GetIV() => _IV;
 
     public async Task<byte[]> EncryptAsync(byte[] data)
     {
+        Console.WriteLine($" Block size {BlockSize}");
         data = PaddingMode.PaddingMode.ApplyPadding(data, BlockSize, _paddingMode);
 
         Console.WriteLine("After padding");
+        
+        if (data.Length % BlockSize != 0)
+            throw new CryptographicException("Data length must be a multiple of block size after padding.");
 
         var tasks = new List<Task<byte[]>>();
 

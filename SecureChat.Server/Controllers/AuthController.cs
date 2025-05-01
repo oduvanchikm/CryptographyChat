@@ -119,7 +119,8 @@ public class AuthController : ControllerBase
         var authProperties = new AuthenticationProperties
         {
             IsPersistent = true,
-            AllowRefresh = true
+            AllowRefresh = true,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1)
         };
 
         await HttpContext.SignInAsync(
@@ -127,7 +128,7 @@ public class AuthController : ControllerBase
             new ClaimsPrincipal(claimsIdentity),
             authProperties
         );
-
+        
         _logger.LogInformation("[ LoginController ] : User logged in");
 
         return Ok(new

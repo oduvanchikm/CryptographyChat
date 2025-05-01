@@ -4,6 +4,31 @@ namespace Cryptography;
 
 public class BitManipulation
 {
+    public static uint ComputeMask(uint w)
+    {
+        uint m = 0;
+        for (uint i = 0; i < 32; i++)
+        {
+            if ((w & (1u << (int)i)) != 0)
+            {
+                m |= 0xFFFFFFFFu << (int)i;
+                break;
+            }
+        }
+
+        return m;
+    }
+    
+    public static uint LeftRotate(uint val, int shift)
+    {
+        return (val << shift) | (val >> (32 - shift));
+    }
+    
+    public static uint RightRotate(uint val, int shift)
+    {
+        return (val >> shift) | (val << (32 - shift));
+    }
+    
     public static byte[] LeftRotateBytes(byte[] x, int shift, int w)
     {
         shift = (shift % w + w) % w;

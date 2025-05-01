@@ -4,10 +4,19 @@ namespace Cryptography.CipherMode;
 
 public class ECB
 {
-    private const int BlockSize = 8;
+    private static int BlockSize;
+    private static int GetBlockSize(ISymmetricEncryptionAlgorithm encryptor)
+    {
+        return encryptor switch
+        {
+            RC5.RC5 _ => 8,
+            MARS.MARS _ => 16
+        };
+    }
     public static byte[] EncryptECB(byte[] data, ISymmetricEncryptionAlgorithm encryptor)
     {
         Console.WriteLine("Start ECB Encryptor");
+        BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
 
         Parallel.For(

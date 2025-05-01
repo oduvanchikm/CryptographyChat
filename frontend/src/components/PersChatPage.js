@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, {useState, useEffect, useCallback} from 'react';
+import {useParams, useNavigate} from 'react-router-dom';
 import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
-import { P, G } from './DH/constants';
+import {P, G} from './DH/constants';
 /* global BigInt */
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function bigIntToBase64(bigint) {
     const hex = bigint.toString(16);
@@ -14,7 +16,7 @@ function bigIntToBase64(bigint) {
 }
 
 function PersChatPage() {
-    const { chatId } = useParams();
+    const {chatId} = useParams();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -24,10 +26,9 @@ function PersChatPage() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const navigate = useNavigate();
 
-    // Функция для загрузки текущего пользователя
     useEffect(() => {
         const fetchCurrentUser = async () => {
-            const response = await fetch('http://localhost:5079/api/auth/me', {
+            const response = await fetch(`${API_BASE_URL}/auth/me`, {
                 credentials: 'include'
             });
             const user = await response.json();
@@ -36,10 +37,9 @@ function PersChatPage() {
         fetchCurrentUser();
     }, []);
 
-    // Функция для загрузки сообщений
     const loadMessages = useCallback(async (onlyNew = false) => {
         try {
-            const response = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
+            const response = await fetch(`${API_BASE_URL}/chat/${chatId}/history?count=50`, {
                 credentials: 'include'
             });
 
@@ -48,7 +48,6 @@ function PersChatPage() {
 
                 setMessages(prevMessages => {
                     if (onlyNew) {
-                        // Добавляем только новые сообщения
                         const existingIds = new Set(prevMessages.map(m =>
                             `${m.sentAt}-${m.senderId}-${m.encryptedContent}`
                         ));
@@ -59,7 +58,6 @@ function PersChatPage() {
                             new Date(a.sentAt) - new Date(b.sentAt)
                         );
                     } else {
-                        // Первоначальная загрузка
                         return newMessages.sort((a, b) =>
                             new Date(a.sentAt) - new Date(b.sentAt)
                         );
@@ -71,7 +69,6 @@ function PersChatPage() {
         }
     }, [chatId]);
 
-    // Инициализация Diffie-Hellman и загрузка сообщений
     useEffect(() => {
         if (!currentUserId) return;
 
@@ -95,21 +92,21 @@ function PersChatPage() {
 
                 const publicKeyBase64 = bigIntToBase64(dh.publicKey);
 
-                await fetch(`http://localhost:5079/api/chat/${chatId}/updateKey`, {
+                await fetch(`${API_BASE_URL}/chat/${chatId}/updateKey`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
                     body: JSON.stringify({
                         publicKey: publicKeyBase64
                     })
                 });
 
-                const keyResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/participantKey`, {
+                const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
                     credentials: 'include'
                 });
 
                 if (keyResponse.ok) {
-                    const { publicKey } = await keyResponse.json();
+                    const {publicKey} = await keyResponse.json();
                     if (publicKey) {
                         try {
                             const otherPubKey = base64ToBigInt(publicKey);
@@ -124,7 +121,6 @@ function PersChatPage() {
                     }
                 }
 
-                // Первоначальная загрузка сообщений
                 await loadMessages(false);
 
             } catch (error) {
@@ -138,12 +134,11 @@ function PersChatPage() {
         initDH();
     }, [chatId, currentUserId, loadMessages]);
 
-    // Периодическая проверка новых сообщений
     useEffect(() => {
         if (!chatId || !currentUserId) return;
 
         const intervalId = setInterval(() => {
-            loadMessages(true); // Загружаем только новые сообщения
+            loadMessages(true);
         }, 3000);
 
         return () => clearInterval(intervalId);
@@ -154,9 +149,9 @@ function PersChatPage() {
 
         try {
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
-            await fetch(`http://localhost:5079/api/chat/${chatId}/send`, {
+            await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
                 body: JSON.stringify({
                     message: newMessage,
@@ -165,7 +160,6 @@ function PersChatPage() {
             });
 
             setNewMessage('');
-            // После отправки загружаем только новые сообщения
             await loadMessages(true);
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -181,11 +175,6 @@ function PersChatPage() {
             <div className="chat-header">
                 <button onClick={() => navigate(-1)} className="back-button">← Back</button>
                 <h2>Chat #{chatId}</h2>
-                {dhInstance && (
-                    <div className="key-info">
-                        <small>My Public Key: {dhInstance.publicKey.toString().slice(0, 10)}...</small>
-                    </div>
-                )}
             </div>
 
             <div className="messages-container">

@@ -10,7 +10,6 @@ using SecureChat.Common.Models;
 using SecureChat.Common.ViewModels;
 using SecureChat.Database;
 using SecureChat.Server.Interfaces;
-using SecureChat.Server.Services;
 using StackExchange.Redis;
 using PaddingMode = Cryptography.PaddingMode.PaddingMode;
 using CipherMode = Cryptography.CipherMode.CipherMode;
@@ -38,8 +37,7 @@ public class ChatController : ControllerBase
         IUserService userService,
         IConnectionMultiplexer redis,
         KafkaProducerService kafkaProducer,
-        IEncryptionService encryptionService
-        )
+        IEncryptionService encryptionService)
     {
         _chatService = chatService;
         _dbContextFactory = dbContextFactory;
@@ -134,6 +132,35 @@ public class ChatController : ControllerBase
         }
 
         throw new InvalidOperationException("Invalid user ID in claims");
+    }
+    
+    [HttpDelete("{chatId}")]
+    public async Task<IActionResult> DeleteChat(int chatId)
+    {
+        var currentUserId = GetCurrentUserId();
+    
+        try
+        {
+            var success = await _chatService.DeleteChatAsync(chatId, currentUserId, _redis);
+        
+            if (!success)
+            {
+                return NotFound(new { message = "Chat not found or you don't have permissions" });
+            }
+        
+            // await _kafkaProducer.SendMessage(new ChatDeletedEvent
+            // {
+            //     ChatId = chatId,
+            //     DeletedAt = DateTime.UtcNow
+            // });
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting chat");
+            return StatusCode(500, new { message = "Error deleting chat" });
+        }
     }
 
     [HttpPost("{chatId}/send")]

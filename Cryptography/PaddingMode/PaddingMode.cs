@@ -16,10 +16,10 @@ public class PaddingMode
     {
         return paddingModeString switch
         {
-            "Zeros" => PaddingMode.Mode.Zeros,
-            "ANSIX923" => PaddingMode.Mode.ANSI_X_923,
-            "PKCS7" => PaddingMode.Mode.PKCS7,
-            "ISO10126" => PaddingMode.Mode.ISO_10126,
+            "Zeros" => Mode.Zeros,
+            "ANSIX923" => Mode.ANSI_X_923,
+            "PKCS7" => Mode.PKCS7,
+            "ISO10126" => Mode.ISO_10126,
             _ => throw new ArgumentException($"Unknown padding mode: {paddingModeString}")
         };
     }

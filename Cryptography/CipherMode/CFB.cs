@@ -4,10 +4,19 @@ namespace Cryptography.CipherMode;
 
 public class CFB
 {
-    private const int BlockSize = 8;
+    private static int BlockSize;
+    private static int GetBlockSize(ISymmetricEncryptionAlgorithm encryptor)
+    {
+        return encryptor switch
+        {
+            RC5.RC5 _ => 8,
+            MARS.MARS _ => 16
+        };
+    }
     public static byte[] EncryptCFB(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
         Console.WriteLine("Start CFB Encryptor");
+        BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] previousBlock = IV;
 
