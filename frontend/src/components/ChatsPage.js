@@ -57,6 +57,30 @@ function ChatsPage() {
         }
     }, []);
 
+    const deleteChat = useCallback(async (chatId, event) => {
+        event.stopPropagation();
+
+        if (!window.confirm('Are you sure you want to delete this chat?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:5079/api/chat/${chatId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete chat');
+            }
+
+            await fetchChats();
+        } catch (error) {
+            setError(error.message);
+            console.error('Error deleting chat:', error);
+        }
+    }, [fetchChats]);
+
     useEffect(() => {
         fetchCurrentUser();
         fetchChats().catch(console.error);
@@ -306,6 +330,10 @@ function ChatsPage() {
                                                 {chat.lastMessage || 'No messages yet'}
                                             </p>
                                         </div>
+                                        <button className="delete-chat-btn" onClick={(e) => deleteChat(chat.id, e)}
+                                                title="Delete chat">
+                                            🗑️
+                                        </button>
                                     </li>
                                 ))}
                             </ul>

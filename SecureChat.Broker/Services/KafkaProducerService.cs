@@ -24,10 +24,9 @@ public class KafkaProducerService
         _producer = new ProducerBuilder<Null, string>(config).Build();
     }
 
-    public async Task SendMessage(ChatMessageEvent message)
+    public async Task SendMessage<T>(T message) where T : class
     {
         var json = JsonSerializer.Serialize(message);
-
         try
         {
             _logger.LogInformation($"Sending message: {json}");
@@ -37,6 +36,7 @@ public class KafkaProducerService
         catch (ProduceException<Null, string> e)
         {
             _logger.LogError("Kafka send error: {Reason}", e.Error.Reason);
+            throw;
         }
     }
 

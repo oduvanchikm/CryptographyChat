@@ -138,7 +138,10 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> DeleteChat(int chatId)
     {
         var currentUserId = GetCurrentUserId();
+        
+        await using var context = _dbContextFactory.CreateDbContext();
     
+        await using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
             var success = await _chatService.DeleteChatAsync(chatId, currentUserId, _redis);
@@ -148,16 +151,18 @@ public class ChatController : ControllerBase
                 return NotFound(new { message = "Chat not found or you don't have permissions" });
             }
         
-            // await _kafkaProducer.SendMessage(new ChatDeletedEvent
-            // {
-            //     ChatId = chatId,
-            //     DeletedAt = DateTime.UtcNow
-            // });
+            await _kafkaProducer.SendMessage(new ChatDeletedEvent
+            {
+                ChatId = chatId,
+                DeletedAt = DateTime.UtcNow
+            });
 
+            await transaction.CommitAsync();
             return NoContent();
         }
         catch (Exception ex)
         {
+            await transaction.RollbackAsync();
             _logger.LogError(ex, "Error deleting chat");
             return StatusCode(500, new { message = "Error deleting chat" });
         }
