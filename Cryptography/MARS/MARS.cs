@@ -7,7 +7,7 @@ public class MARS : ISymmetricEncryptionAlgorithm
     private byte[][] roundKeys;
     private IKeyExpansion _keyExpansion;
 
-    public void SetKey(byte[] key)
+    private void SetKey(byte[] key)
     {
         _keyExpansion = new KeyExpansion();
     }

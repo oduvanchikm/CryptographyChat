@@ -13,23 +13,4 @@ public class UserService(IDbContextFactory<SecureChatDbContext> dbContext) : IUs
         return await context.Users
             .FirstOrDefaultAsync(u => u.Id == userId);
     }
-
-    public async Task<User?> GetUserByUsernameAsync(string username)
-    {
-        await using var context = await dbContext.CreateDbContextAsync();
-        return await context.Users
-            .FirstOrDefaultAsync(u => u.Username == username);
-    }
-
-    public async Task<bool> UserExists(string username)
-    {
-        await using var context = await dbContext.CreateDbContextAsync();
-        return await context.Users.AnyAsync(u => u.Username == username);
-    }
-
-    public async Task<IEnumerable<User>> SearchUsers(string query, int currentUserId)
-    {
-        await using var context = await dbContext.CreateDbContextAsync();
-        return await context.Users.Where(u => u.Username.Contains(query) && u.Id != currentUserId).ToListAsync();
-    }
 }

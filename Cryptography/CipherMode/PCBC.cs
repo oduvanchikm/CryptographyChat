@@ -15,7 +15,6 @@ public class PCBC
     }
     public static byte[] EncryptPCBC(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
-        Console.WriteLine("Start PCBC Encryptor");
         BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] previousBlock = IV;
@@ -36,7 +35,7 @@ public class PCBC
     
     public static byte[] DecryptPCBC(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
-        Console.WriteLine("Start PCBC Decryptor");
+        BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] previousBlock = IV;
 
@@ -49,7 +48,7 @@ public class PCBC
             byte[] xoredBlock = BitManipulation.Xor(encryptedBlock, previousBlock);
             
             Array.Copy(xoredBlock, 0, result, i, BlockSize);
-            previousBlock = BitManipulation.Xor(block, encryptedBlock);
+            previousBlock = BitManipulation.Xor(xoredBlock, block);
         }
         
         return result;

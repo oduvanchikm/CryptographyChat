@@ -93,18 +93,34 @@ public class PaddingMode
         {
             case Mode.Zeros:
                 paddingLength = GetZerosPaddingLength(data);
+                if (paddingLength == 0)
+                {
+                    return data;
+                }
                 break;
 
             case Mode.ANSI_X_923:
                 paddingLength = GetANSI_X_923PaddingLength(data);
+                if (paddingLength == 0)
+                {
+                    return data;
+                }
                 break;
 
             case Mode.PKCS7:
                 paddingLength = GetPKCS7PaddingLength(data);
+                if (paddingLength == 0)
+                {
+                    return data;
+                }
                 break;
 
             case Mode.ISO_10126:
                 paddingLength = GetISO_10126PaddingLength(data);
+                if (paddingLength == 0)
+                {
+                    return data;
+                }
                 break;
         }
 
@@ -159,17 +175,15 @@ public class PaddingMode
     {
         if (data == null || data.Length == 0)
             throw new ArgumentException("Data cannot be null or empty");
-    
+
         int paddingLength = data[^1];
-    
-        // Проверяем что значение паддинга в допустимом диапазоне
-        if (paddingLength <= 0 || paddingLength > 16) // Максимальный размер паддинга для AES - 16 байт
-            throw new CryptographicException($"Invalid ISO 10126 padding length {paddingLength}");
-    
-        // Проверяем что в массиве достаточно места для паддинга
+
+        if (paddingLength <= 0 || paddingLength > data.Length)
+            return 0;
+
         if (paddingLength > data.Length)
-            throw new CryptographicException("Padding length exceeds data length");
-    
+            return 0;
+
         return paddingLength;
     }
 }

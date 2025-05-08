@@ -18,14 +18,14 @@ public class CipherMode
     {
         return cipherModeString switch
         {
-            "ECB" => CipherMode.Mode.ECB,
-            "CBC" => CipherMode.Mode.CBC,
-            "PCBC" => CipherMode.Mode.PCBC,
-            "CFB" => CipherMode.Mode.CFB,
-            "OFB" => CipherMode.Mode.OFB,
-            "CTR" => CipherMode.Mode.CTR,
-            "RD" => CipherMode.Mode.RD,
-            "NONE" => CipherMode.Mode.NONE,
+            "ECB" => Mode.ECB,
+            "CBC" => Mode.CBC,
+            "PCBC" => Mode.PCBC,
+            "CFB" => Mode.CFB,
+            "OFB" => Mode.OFB,
+            "CTR" => Mode.CTR,
+            "RD" => Mode.RD,
+            "NONE" => Mode.NONE,
             _ => throw new ArgumentException($"Unknown cipher mode: {cipherModeString}")
         };
     }

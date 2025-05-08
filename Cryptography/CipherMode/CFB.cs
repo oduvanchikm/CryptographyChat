@@ -15,20 +15,21 @@ public class CFB
     }
     public static byte[] EncryptCFB(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
-        Console.WriteLine("Start CFB Encryptor");
         BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] previousBlock = IV;
 
         for (int i = 0; i < data.Length; i += BlockSize)
         {
+            byte[] encryptedFeedback = encryptor.Encrypt(previousBlock);
+            
             byte[] block = new byte[BlockSize];
             Array.Copy(data, i, block, 0, BlockSize);
             
-            byte[] encryptedBlock = BitManipulation.Xor(block, encryptor.Encrypt(previousBlock));
+            byte[] decryptedBlock = BitManipulation.Xor(block, encryptedFeedback);
             
-            Array.Copy(encryptedBlock, 0, result, i, BlockSize);
-            previousBlock = encryptedBlock;
+            Array.Copy(decryptedBlock, 0, result, i, BlockSize);
+            previousBlock = block;
         }
         
         return result;
@@ -36,7 +37,6 @@ public class CFB
 
     public static byte[] DecryptCFB(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
-        Console.WriteLine("Start CFB Decryptor");
         byte[] result = new byte[data.Length];
         byte[] previousBlock = IV;
 

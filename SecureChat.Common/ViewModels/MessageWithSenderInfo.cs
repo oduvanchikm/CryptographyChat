@@ -7,4 +7,7 @@ public class MessageWithSenderInfo
     public DateTime SentAt { get; set; }
     public string SenderUsername { get; set; }
     public bool IsCurrentUser { get; set; }
+    
+    public string ContentType { get; set; }
+    public string FileName { get; set; }
 }

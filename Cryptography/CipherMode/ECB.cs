@@ -15,7 +15,6 @@ public class ECB
     }
     public static byte[] EncryptECB(byte[] data, ISymmetricEncryptionAlgorithm encryptor)
     {
-        Console.WriteLine("Start ECB Encryptor");
         BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
 
@@ -35,7 +34,6 @@ public class ECB
 
     public static byte[] DecryptECB(byte[] data, ISymmetricEncryptionAlgorithm encryptor)
     {
-        Console.WriteLine("Start ECB Decryptor");
         byte[] result = new byte[data.Length];
 
         Parallel.For(0, data.Length / BlockSize, i =>

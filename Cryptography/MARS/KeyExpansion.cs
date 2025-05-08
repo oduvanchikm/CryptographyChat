@@ -11,7 +11,7 @@ public class KeyExpansion : IKeyExpansion
         uint[] T = new uint[15];
         uint[] K = new uint[40];
 
-        // Step 1: Initialize T[0...n-1] = key[...]
+        // init T[0...n-1] = key[...]
         for (int i = 0; i < n; ++i)
         {
             T[i] = BitConverter.ToUInt32(key, i * 4);
@@ -25,13 +25,13 @@ public class KeyExpansion : IKeyExpansion
 
         for (int j = 0; j < 4; ++j)
         {
-            // Step 2: Linear Key-Word Expansion
+            // linear Key-Word Expansion
             for (int i = 0; i < 15; i++)
             {
                 T[i] ^= BitManipulation.LeftRotate(T[(i + 8) % 15] ^ T[(i + 13) % 15], 3) ^ (uint)(4 * i + j);
             }
 
-            // Step 3: S-box Based Stirring
+            // S-box Based Stirring
             for (int round = 0; round < 4; round++)
             {
                 for (int i = 0; i < 15; i++)
@@ -41,7 +41,7 @@ public class KeyExpansion : IKeyExpansion
                 }
             }
 
-            // Step 4: Store next 10 key words into K
+            // store next 10 key words into K
             for (int i = 0; i < 10; i++)
             {
                 K[10 * j + i] = T[(4 * i) % 15];
@@ -66,12 +66,12 @@ public class KeyExpansion : IKeyExpansion
             roundKeys[i] = BitConverter.GetBytes(K[i]);
         }
 
-        Console.WriteLine("Generated Round Keys:");
-        for (int i = 0; i < roundKeys.Length; i++)
-        {
-            string hex = BitConverter.ToString(roundKeys[i]).Replace("-", "");
-            Console.WriteLine($"K[{i:D2}] = 0x{hex}");
-        }
+        // Console.WriteLine("Generated Round Keys:");
+        // for (int i = 0; i < roundKeys.Length; i++)
+        // {
+        //     string hex = BitConverter.ToString(roundKeys[i]).Replace("-", "");
+        //     Console.WriteLine($"K[{i:D2}] = 0x{hex}");
+        // }
 
         return roundKeys;
     }

@@ -28,7 +28,6 @@ public class KeyExpansion : IKeyExpansion
 
         byte[][] K = new byte[c][];
         byte[][] S = new byte[t][];
-        Console.WriteLine("1");
 
         for (int i = 0; i < c; i++)
         {

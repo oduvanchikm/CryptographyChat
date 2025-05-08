@@ -155,7 +155,8 @@ function PersChatPage() {
                 credentials: 'include',
                 body: JSON.stringify({
                     message: newMessage,
-                    publicKey: publicKeyBase64
+                    publicKey: publicKeyBase64,
+                    contentType: 'text'
                 })
             });
 
@@ -163,6 +164,76 @@ function PersChatPage() {
             await loadMessages(true);
         } catch (error) {
             console.error('Failed to send message:', error);
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !sharedSecret) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size exceeds 5MB limit');
+            return;
+        }
+
+        try {
+            const arrayBuffer = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+
+            const base64Content = btoa(
+                new Uint8Array(arrayBuffer)
+                    .reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+
+            const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
+
+            await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    message: base64Content,
+                    publicKey: publicKeyBase64,
+                    contentType: file.type,
+                    fileName: file.name
+                })
+            });
+
+            await loadMessages(true);
+        } catch (error) {
+            console.error('File upload failed:', error);
+        }
+    };
+
+    const downloadFile = (base64Content, fileName, contentType, isImage = false) => {
+        try {
+            const byteCharacters = atob(base64Content);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+
+            if (isImage) {
+                const blob = new Blob([byteArray], {type: contentType});
+                const url = window.URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } else {
+                const blob = new Blob([byteArray], {type: contentType});
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
+        } catch (error) {
+            console.error('Failed to handle file:', error);
         }
     };
 
@@ -180,16 +251,81 @@ function PersChatPage() {
             <div className="messages-container">
                 {messages.map((message, index) => {
                     const isCurrentUser = message.isCurrentUser;
-                    const decryptedContent = decryptMessage(message.encryptedContent);
 
+                    const isImage = message.contentType && message.contentType.startsWith('image/');
+
+                    if (isImage) {
+                        return (
+                            <div key={`${message.sentAt}-${message.senderId}-${index}`}
+                                 className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
+                                <div className={`message ${isCurrentUser ? 'sent' : 'received'}`}>
+                                    <div className="message-header">
+                        <span className="message-username">
+                            {isCurrentUser ? 'You' : message.senderUsername}
+                        </span>
+                                    </div>
+                                    <div className="message-content">
+                                        <img
+                                            src={`data:${message.contentType};base64,${message.encryptedContent}`}
+                                            alt={message.fileName || "Sent image"}
+                                            className="chat-image"
+                                            onClick={() => downloadFile(
+                                                message.encryptedContent,
+                                                message.fileName,
+                                                message.contentType,
+                                                true
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="message-time">
+                                        {new Date(message.sentAt).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+                    else if (message.contentType && message.contentType !== 'text') {
+                        return (
+                            <div key={`${message.sentAt}-${message.senderId}-${index}`}
+                                 className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
+                                <div className={`message ${isCurrentUser ? 'sent' : 'received'}`}>
+                                    <div className="message-header">
+                        <span className="message-username">
+                            {isCurrentUser ? 'You' : message.senderUsername}
+                        </span>
+                                    </div>
+                                    <div className="message-content">
+                                        <button onClick={() => downloadFile(
+                                            message.encryptedContent,
+                                            message.fileName,
+                                            message.contentType
+                                        )}>
+                                            Download {message.fileName}
+                                        </button>
+                                    </div>
+                                    <div className="message-time">
+                                        {new Date(message.sentAt).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    const decryptedContent = decryptMessage(message.encryptedContent);
                     return (
                         <div key={`${message.sentAt}-${message.senderId}-${index}`}
                              className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
                             <div className={`message ${isCurrentUser ? 'sent' : 'received'}`}>
                                 <div className="message-header">
-                                    <span className="message-username">
-                                        {isCurrentUser ? 'You' : message.senderUsername}
-                                    </span>
+                    <span className="message-username">
+                        {isCurrentUser ? 'You' : message.senderUsername}
+                    </span>
                                 </div>
                                 <div className="message-content">{decryptedContent}</div>
                                 <div className="message-time">
@@ -219,6 +355,16 @@ function PersChatPage() {
                 >
                     Send
                 </button>
+                <input
+                    type="file"
+                    id="file-upload"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                    disabled={!sharedSecret}
+                />
+                <label htmlFor="file-upload" className="file-upload-button">
+                    📎 Add File
+                </label>
                 {!sharedSecret && (
                     <div className="warning">Establishing secure connection...</div>
                 )}

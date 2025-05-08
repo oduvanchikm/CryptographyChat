@@ -45,7 +45,6 @@ public class CTR
                 break;
         }
     }
-
-
+    
     public static byte[] DecryptCTR(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV) => EncryptCTR(data, encryptor, IV);
 }

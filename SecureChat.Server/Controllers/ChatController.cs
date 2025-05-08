@@ -19,70 +19,53 @@ namespace SecureChat.Server.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
-public class ChatController : ControllerBase
+public class ChatController(
+    IChatService chatService,
+    IDbContextFactory<SecureChatDbContext> dbContextFactory,
+    ILogger<ChatController> logger,
+    IUserService userService,
+    IConnectionMultiplexer redis,
+    KafkaProducerService kafkaProducer,
+    IEncryptionService encryptionService)
+    : ControllerBase
 {
-    private readonly IChatService _chatService;
-    private readonly IUserService _userService;
-    private readonly IDbContextFactory<SecureChatDbContext> _dbContextFactory;
-    private readonly ILogger<ChatController> _logger;
-    private readonly IDatabase _redisDb;
-    private readonly IConnectionMultiplexer _redis;
-    private readonly KafkaProducerService _kafkaProducer;
-    private readonly IEncryptionService _encryptionService;
-
-    public ChatController(
-        IChatService chatService,
-        IDbContextFactory<SecureChatDbContext> dbContextFactory,
-        ILogger<ChatController> logger,
-        IUserService userService,
-        IConnectionMultiplexer redis,
-        KafkaProducerService kafkaProducer,
-        IEncryptionService encryptionService)
-    {
-        _chatService = chatService;
-        _dbContextFactory = dbContextFactory;
-        _logger = logger;
-        _userService = userService;
-        _redis = redis;
-        _redisDb = redis.GetDatabase();
-        _kafkaProducer = kafkaProducer;
-        _encryptionService = encryptionService;
-    }
+    private readonly IDatabase _redisDb = redis.GetDatabase();
 
     [HttpPost("create")]
     public async Task<IActionResult> CreateChat([FromBody] CreateChatRequest request)
     {
-        _logger.LogInformation("PUBLIC KEY: ");
-        _logger.LogInformation(JsonSerializer.Serialize(request));
+        logger.LogInformation("PUBLIC KEY: ");
+        logger.LogInformation(JsonSerializer.Serialize(request));
 
         var currentUserId = GetCurrentUserId();
         int participantId = request.ParticipantId;
 
-        _logger.LogInformation("[CreateChat] Creating new chat2");
+        logger.LogInformation("[CreateChat] Creating new chat2");
 
-        await using var context = _dbContextFactory.CreateDbContext();
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         try
         {
-            var participantUser = await _userService.GetUserByIdAsync(participantId);
+            var participantUser = await userService.GetUserByIdAsync(participantId);
             if (participantUser == null)
             {
-                _logger.LogInformation("[CreateChat] error with creating new chat");
+                logger.LogInformation("[CreateChat] error with creating new chat");
                 return NotFound(new { message = "Participant user not found" });
             }
 
-            _logger.LogInformation("[CreateChat] Creating new chat3");
+            logger.LogInformation("[CreateChat] Creating new chat3");
 
             var existingChat = await context.Chat
                 .Where(c => c.ChatUser.Count() == 2 &&
                             c.ChatUser.Any(cu => cu.UserId == currentUserId) &&
                             c.ChatUser.Any(cu => cu.UserId == participantId))
+                .Include(chats => chats.ChatUser)
                 .FirstOrDefaultAsync();
 
             if (existingChat != null)
             {
-                _logger.LogInformation("[CreateChat] Chat already exists");
+                logger.LogInformation("[CreateChat] Chat already exists");
 
                 var otherUserId = existingChat.ChatUser
                     .Where(u => u.UserId != currentUserId)
@@ -99,14 +82,14 @@ public class ChatController : ControllerBase
                 });
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 $"[CreateChat] INFORMATION ABOUT CRYPTO {request.Algorithm}, {request.Padding}, {request.ModeCipher}");
 
-            var chat = await _chatService.CreateChatAsync(currentUserId,
+            var chat = await chatService.CreateChatAsync(currentUserId,
                 participantId, participantUser.Username, request.Algorithm, request.Padding,
                 request.ModeCipher);
 
-            _logger.LogInformation("[CreateChat] Creating new chat4");
+            logger.LogInformation("[CreateChat] Creating new chat4");
             
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -119,7 +102,7 @@ public class ChatController : ControllerBase
         catch (Exception e)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(e, "Error creating chat");
+            logger.LogError(e, "Error creating chat");
             return StatusCode(500, new { message = "Error creating chat" });
         }
     }
@@ -139,19 +122,19 @@ public class ChatController : ControllerBase
     {
         var currentUserId = GetCurrentUserId();
         
-        await using var context = _dbContextFactory.CreateDbContext();
+        await using var context = await dbContextFactory.CreateDbContextAsync();
     
         await using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
-            var success = await _chatService.DeleteChatAsync(chatId, currentUserId, _redis);
+            var success = await chatService.DeleteChatAsync(chatId, currentUserId, redis);
         
             if (!success)
             {
                 return NotFound(new { message = "Chat not found or you don't have permissions" });
             }
         
-            await _kafkaProducer.SendMessage(new ChatDeletedEvent
+            await kafkaProducer.SendMessage(new ChatDeletedEvent
             {
                 ChatId = chatId,
                 DeletedAt = DateTime.UtcNow
@@ -163,7 +146,7 @@ public class ChatController : ControllerBase
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(ex, "Error deleting chat");
+            logger.LogError(ex, "Error deleting chat");
             return StatusCode(500, new { message = "Error deleting chat" });
         }
     }
@@ -171,9 +154,9 @@ public class ChatController : ControllerBase
     [HttpPost("{chatId}/send")]
     public async Task<IActionResult> SendMessage(int chatId, [FromBody] SendMessageRequest request)
     {
-        await using var context = _dbContextFactory.CreateDbContext();
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         var senderId = GetCurrentUserId();
-        if (!await _chatService.IsUserInChatAsync(chatId, senderId))
+        if (!await chatService.IsUserInChatAsync(chatId, senderId))
         {
             return Forbid();
         }
@@ -181,22 +164,37 @@ public class ChatController : ControllerBase
         var redisKey = $"chat:{chatId}:user:{senderId}:publicKey";
         await _redisDb.StringSetAsync(redisKey, request.PublicKey, TimeSpan.FromHours(24));
 
-        var chat = await _chatService.GetChatByIdAsync(chatId);
+        var chat = await chatService.GetChatByIdAsync(chatId);
         if (chat == null)
         {
             return NotFound(new { message = "Chat not found" });
         }
-        _logger.LogInformation($"Padding {chat.Padding}, cipher mode {chat.ModeCipher}");
+        logger.LogInformation($"Padding {chat.Padding}, cipher mode {chat.ModeCipher}");
+
+        byte[] messageBytes;
         
         // получаем сообщение в стринге 
         Console.WriteLine("1. [SendMessage] Message: " + request.Message);
-        
-        // переводим сообщение в байты
-        var messageBytes = Encoding.UTF8.GetBytes(request.Message);
-        Console.WriteLine("2. [SendMessage] Message in bytes : " + BitConverter.ToString(messageBytes));
+    
+        if (request.ContentType == "file")
+        {
+            if (request.Message.Length > 5 * 1024 * 1024 * 4 / 3)
+            {
+                return BadRequest("File size exceeds 5MB limit");
+            }
+            
+            // для файлов оставляем как есть
+            messageBytes = Convert.FromBase64String(request.Message);
+        }
+        else
+        {
+            // переводим сообщение в байты
+            messageBytes = Encoding.UTF8.GetBytes(request.Message);
+            Console.WriteLine("2. [SendMessage] Message in bytes : " + BitConverter.ToString(messageBytes));
+        }
 
         // шифруем сообщение
-        var encryptedContent = await _encryptionService.EncryptAsync(
+        var encryptedContent = await encryptionService.EncryptAsync(
             messageBytes,
             chat.Algorithm,
             PaddingMode.ToPaddingMode(chat.Padding),
@@ -217,11 +215,13 @@ public class ChatController : ControllerBase
             ChatId = chatId,
             SenderId = senderId,
             EncryptedContent = base64EncryptedContent,
-            SentAt = DateTime.UtcNow
+            SentAt = DateTime.UtcNow,
+            ContentType = request.ContentType ?? "text",
+            FileName = request.FileName
         };
         
         // отправляем в кафку
-        await _kafkaProducer.SendMessage(messageEvent);
+        await kafkaProducer.SendMessage(messageEvent);
 
         var key = $"chat:{chatId}:messages";
         var json = JsonSerializer.Serialize(messageEvent);
@@ -233,42 +233,39 @@ public class ChatController : ControllerBase
     [HttpGet("{chatId}/history")]
     public async Task<IActionResult> GetHistory(int chatId, [FromQuery] int count = 50)
     {
-        _logger.LogInformation($"[GetHistory] ChatId: {chatId}");
+        logger.LogInformation($"[GetHistory] ChatId: {chatId}");
         var userId = GetCurrentUserId();
-        await using var context = _dbContextFactory.CreateDbContext();
+        await using var context = dbContextFactory.CreateDbContext();
     
-        if (!await _chatService.IsUserInChatAsync(chatId, userId))
+        if (!await chatService.IsUserInChatAsync(chatId, userId))
         {
-            _logger.LogInformation($"[GetHistory] User {userId} not in chat");
+            logger.LogInformation($"[GetHistory] User {userId} not in chat");
             return Forbid();
         }
     
-        var chat = await _chatService.GetChatByIdAsync(chatId);
+        var chat = await chatService.GetChatByIdAsync(chatId);
         if (chat == null)
         {
-            _logger.LogInformation($"[GetHistory] Chat {chatId} not in chat");
+            logger.LogInformation($"[GetHistory] Chat {chatId} not in chat");
             return NotFound(new { message = "Chat not found" });
         }
         
         var messages = await _redisDb.ListRangeAsync($"chat:{chatId}:messages", -count, -1);
         if (!messages.Any())
         {
-            _logger.LogInformation($"[GetHistory] Chat {chatId} has no messages");
+            logger.LogInformation($"[GetHistory] Chat {chatId} has no messages");
         }
-        
-        _logger.LogInformation("be1");
         
         var messageList = messages
             .Select(m => JsonSerializer.Deserialize<ChatMessageEvent>(m!))
             .Where(m => m != null)
             .ToList();
-        _logger.LogInformation("be2");
     
         var enrichedMessages = new List<MessageWithSenderInfo>();
     
         foreach (var message in messageList)
         {
-            var senderUser = await _userService.GetUserByIdAsync(message.SenderId);
+            var senderUser = await userService.GetUserByIdAsync(message.SenderId);
             
             // получаем сообщение в стринге
             string messageString = message.EncryptedContent;
@@ -281,7 +278,7 @@ public class ChatController : ControllerBase
                 Console.WriteLine("2. [HistoryMessage] Encrypted bytes: " + BitConverter.ToString(encryptedBytes));
 
                 // дешифруем сообщение
-                var decryptedBytes = await _encryptionService.DecryptAsync(
+                var decryptedBytes = await encryptionService.DecryptAsync(
                     encryptedBytes,
                     chat.Algorithm,
                     PaddingMode.ToPaddingMode(chat.Padding),
@@ -289,18 +286,30 @@ public class ChatController : ControllerBase
                     chatId,
                     message.SenderId
                 );
-    
-                // декодируем оригинальное сообщение из байтов
-                string decryptedMessage = Encoding.UTF8.GetString(decryptedBytes);
-                Console.WriteLine("3. [HistoryMessage] Decrypted message: " + decryptedMessage);
+                
+                string decryptedContent;
+                if (message.ContentType == "file")
+                {
+                    // Для файлов оставляем как base64
+                    decryptedContent = Convert.ToBase64String(decryptedBytes);
+                }
+                else
+                {
+                    // декодируем оригинальное сообщение из байтов
+                    // Для текста декодируем в строку
+                    decryptedContent = Encoding.UTF8.GetString(decryptedBytes);
+                    Console.WriteLine("3. [HistoryMessage] Decrypted message: " + decryptedContent);
+                }
 
                 enrichedMessages.Add(new MessageWithSenderInfo
                 {
                     SenderId = message.SenderId,
-                    EncryptedContent = decryptedMessage, 
+                    EncryptedContent = decryptedContent, 
                     SentAt = message.SentAt,
                     SenderUsername = senderUser?.Username ?? "Unknown",
-                    IsCurrentUser = message.SenderId == userId
+                    IsCurrentUser = message.SenderId == userId,
+                    ContentType = message.ContentType,
+                    FileName = message.FileName
                 });
             }
             catch (FormatException ex)
@@ -320,12 +329,12 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetParticipantKey(int chatId)
     {
         var userId = GetCurrentUserId();
-        if (!await _chatService.IsUserInChatAsync(chatId, userId))
+        if (!await chatService.IsUserInChatAsync(chatId, userId))
         {
             return Forbid();
         }
 
-        var chat = await _chatService.GetChatByIdAsync(chatId);
+        var chat = await chatService.GetChatByIdAsync(chatId);
         if (chat == null)
         {
             return NotFound(new { message = "Chat not found" });
@@ -353,7 +362,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> UpdatePublicKey(int chatId, [FromBody] UpdateKeyRequest request)
     {
         var userId = GetCurrentUserId();
-        if (!await _chatService.IsUserInChatAsync(chatId, userId))
+        if (!await chatService.IsUserInChatAsync(chatId, userId))
         {
             return Forbid();
         }

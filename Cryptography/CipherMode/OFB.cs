@@ -16,7 +16,6 @@ public class OFB
     
     public static byte[] EncryptOFB(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
-        Console.WriteLine("Start OFB Encryptor");
         BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] previousBlock = IV;

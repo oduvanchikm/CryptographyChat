@@ -24,9 +24,7 @@ public class EncryptionService(
         try
         {
             logger.LogInformation($"[EncryptAsync] EncryptAsync start");
-            
             var context = await CreateCryptoContext(algorithm, paddingMode, cipherMode, chatId, senderId);
-            
             logger.LogInformation($"[EncryptAsync] after create context");
             
             var encryptedBytes = await context.EncryptAsync(data);

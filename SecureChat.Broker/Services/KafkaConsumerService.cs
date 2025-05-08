@@ -80,8 +80,6 @@ public class KafkaConsumerService : BackgroundService
                             await _redisDb.KeyDeleteAsync(key);
                         }
                     }
-
-                    continue;
                 }
             }
             catch (Exception ex)

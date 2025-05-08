@@ -21,15 +21,13 @@ public class ContextCrypto
     {
         BlockSize = encryptor switch
         {
-            RC5.RC5 _ => 8,    // 64 бита для RC5
-            MARS.MARS _ => 16  // 128 бит для MARS
+            RC5.RC5 _ => 8, 
+            MARS.MARS _ => 16
         };
         
         _cipherMode = cipherMode;
         _paddingMode = paddingMode;
         _encryptor = encryptor;
-        
-        // _IV = BitManipulation.Generate();
 
         _IV = iv ?? GenerateIV();
         if (iv == null) _isIVGenerated = true;
@@ -45,100 +43,88 @@ public class ContextCrypto
 
     public async Task<byte[]> EncryptAsync(byte[] data)
     {
-        Console.WriteLine($" Block size {BlockSize}");
         data = PaddingMode.PaddingMode.ApplyPadding(data, BlockSize, _paddingMode);
 
-        Console.WriteLine("After padding");
-        
-        if (data.Length % BlockSize != 0)
-            throw new CryptographicException("Data length must be a multiple of block size after padding.");
+        var result = new byte[data.Length];
+        var blocks = data.Length / BlockSize;
 
-        var tasks = new List<Task<byte[]>>();
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, blocks),
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+            async (i, ct) =>
+            {
+                var block = data.AsMemory(i * BlockSize, BlockSize);
+                var encrypted = EncryptBlock(block.ToArray());
+                encrypted.CopyTo(result.AsMemory(i * BlockSize));
+            });
 
-        for (int i = 0; i < data.Length; i += BlockSize)
-        {
-            var block = new byte[BlockSize];
-            Array.Copy(data, i, block, 0, BlockSize);
-            tasks.Add(Task.Run(() => EncryptBlockAsync(block)));
-        }
-
-        var encryptedBlocks = await Task.WhenAll(tasks);
-
-        var encryptedData = encryptedBlocks.SelectMany(b => b).ToArray();
-
-        return encryptedData;
+        return result;
     }
 
-    private byte[] EncryptBlockAsync(byte[] block)
+    private byte[] EncryptBlock(byte[] block)
     {
         switch (_cipherMode)
         {
-            case CipherMode.CipherMode.Mode.ECB:
-                return ECB.EncryptECB(block, _encryptor);
-            case CipherMode.CipherMode.Mode.CBC:
-                return CBC.EncryptCBC(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.CFB:
-                return CFB.EncryptCFB(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.OFB:
-                return OFB.EncryptOFB(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.PCBC:
-                return PCBC.EncryptPCBC(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.CTR:
-                return CTR.EncryptCTR(block, _encryptor, GetIV());
+            case CipherMode.CipherMode.Mode.RD:
+                var (encrypted, delta) = RD.EncryptRD(block, _encryptor, _IV);
+                _delta = delta;
+                return encrypted;
+
             default:
-                return _encryptor.Encrypt(block);
+                return _cipherMode switch
+                {
+                    CipherMode.CipherMode.Mode.ECB => ECB.EncryptECB(block, _encryptor),
+                    CipherMode.CipherMode.Mode.CBC => CBC.EncryptCBC(block, _encryptor, _IV),
+                    CipherMode.CipherMode.Mode.CFB => CFB.EncryptCFB(block, _encryptor, _IV),
+                    CipherMode.CipherMode.Mode.OFB => OFB.EncryptOFB(block, _encryptor, _IV),
+                    CipherMode.CipherMode.Mode.PCBC => PCBC.EncryptPCBC(block, _encryptor, _IV),
+                    CipherMode.CipherMode.Mode.CTR => CTR.EncryptCTR(block, _encryptor, _IV),
+                    CipherMode.CipherMode.Mode.NONE => _encryptor.Encrypt(block),
+                    _ => throw new NotSupportedException()
+                };
         }
     }
 
     public async Task<byte[]> DecryptAsync(byte[] data)
     {
-        var tasks = new List<Task<byte[]>>();
-
         if (data == null || data.Length == 0)
-        {
-            Console.WriteLine("[ CONTEXT CRYPTO DECRYPT ] data is null");
-        }
+            return Array.Empty<byte>();
 
-        Console.WriteLine($"[ CONTEXT CRYPTO DECRYPT ] {data.Length}");
+        var result = new byte[data.Length];
+        var blocks = data.Length / BlockSize;
 
-        if (data.Length % BlockSize != 0)
-        {
-            throw new CryptographicException("Encrypted data length is not a multiple of block size.");
-        }
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, blocks),
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+            async (i, ct) =>
+            {
+                var block = data.AsMemory(i * BlockSize, BlockSize);
+                var decrypted = DecryptBlock(block.ToArray());
+                decrypted.CopyTo(result.AsMemory(i * BlockSize));
+            });
 
-        for (int i = 0; i < data.Length; i += BlockSize)
-        {
-            int remaining = Math.Min(BlockSize, data.Length - i);
-            var block = new byte[BlockSize];
-            Array.Copy(data, i, block, 0, remaining);
-            tasks.Add(Task.Run(() => DecryptBlockAsync(block)));
-        }
-
-        var decryptedBlocks = await Task.WhenAll(tasks);
-
-        var decryptedData = decryptedBlocks.SelectMany(b => b).ToArray();
-
-        return PaddingMode.PaddingMode.DeletePadding(decryptedData, _paddingMode);
+        return PaddingMode.PaddingMode.DeletePadding(result, _paddingMode);
     }
 
-    private byte[] DecryptBlockAsync(byte[] block)
+    private byte[] DecryptBlock(byte[] data)
     {
-        switch (_cipherMode)
+        byte[] decryptedData = _cipherMode switch
         {
-            case CipherMode.CipherMode.Mode.ECB:
-                return ECB.DecryptECB(block, _encryptor);
-            case CipherMode.CipherMode.Mode.CBC:
-                return CBC.DecryptCBC(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.CFB:
-                return CFB.DecryptCFB(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.OFB:
-                return OFB.DecryptOFB(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.PCBC:
-                return PCBC.DecryptPCBC(block, _encryptor, GetIV());
-            case CipherMode.CipherMode.Mode.CTR:
-                return CTR.DecryptCTR(block, _encryptor, GetIV());
-            default:
-                return _encryptor.Decrypt(block);
+            CipherMode.CipherMode.Mode.ECB => ECB.DecryptECB(data, _encryptor),
+            CipherMode.CipherMode.Mode.CBC => CBC.DecryptCBC(data, _encryptor, _IV),
+            CipherMode.CipherMode.Mode.CFB => CFB.DecryptCFB(data, _encryptor, _IV),
+            CipherMode.CipherMode.Mode.OFB => OFB.DecryptOFB(data, _encryptor, _IV),
+            CipherMode.CipherMode.Mode.PCBC => PCBC.DecryptPCBC(data, _encryptor, _IV),
+            CipherMode.CipherMode.Mode.RD => RD.DecryptRD(data, _encryptor, _IV, _delta),
+            CipherMode.CipherMode.Mode.CTR => CTR.DecryptCTR(data, _encryptor, _IV),
+            CipherMode.CipherMode.Mode.NONE => _encryptor.Decrypt(data),
+            _ => throw new NotSupportedException()
+        };
+        if (_cipherMode != CipherMode.CipherMode.Mode.NONE)
+        {
+            return PaddingMode.PaddingMode.DeletePadding(decryptedData, _paddingMode);
         }
+
+        return decryptedData;
     }
 }

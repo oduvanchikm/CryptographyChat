@@ -17,7 +17,6 @@ public class RD
 
     public static (byte[] ciphertext, byte[] deltas) EncryptRD(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV)
     {
-        Console.WriteLine("Start RD Encryption");
         BlockSize = GetBlockSize(encryptor);
         byte[] result = new byte[data.Length];
         byte[] deltas = new byte[data.Length];
@@ -47,7 +46,6 @@ public class RD
 
     public static byte[] DecryptRD(byte[] data, ISymmetricEncryptionAlgorithm encryptor, byte[] IV, byte[] deltas)
     {
-        Console.WriteLine("Start RD Decryption");
         byte[] result = new byte[data.Length];
         byte[] previousCipher = IV;
 

@@ -9,6 +9,9 @@ public class ChatMessageEvent
     public int SenderId { get; set; }
     public string EncryptedContent { get; set; }
     public DateTime SentAt { get; set; }
+    
+    public string? ContentType {get; set;}
+    public string? FileName { get; set; }
 
     [JsonIgnore] public User? Sender { get; set; }
 }
