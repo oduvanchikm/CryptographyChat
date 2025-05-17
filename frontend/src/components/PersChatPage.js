@@ -350,6 +350,8 @@ function PersChatPage() {
                         message.contentType.startsWith('audio/')
                     );
 
+                    const isPdf = message.contentType === 'application/pdf';
+
                     if (isMedia) {
                         return (
                             <div key={`${message.sentAt}-${message.senderId}-${index}`}
@@ -400,7 +402,7 @@ function PersChatPage() {
                                 </div>
                             </div>
                         );
-                    } else if (message.contentType && message.contentType !== 'text') {
+                    } else if (isPdf || (message.contentType && message.contentType !== 'text')) {
                         return (
                             <div key={`${message.sentAt}-${message.senderId}-${index}`}
                                  className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>

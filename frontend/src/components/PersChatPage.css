@@ -145,7 +145,6 @@
     font-size: 0.8rem;
 }
 
-/* Add these styles to your existing CSS */
 
 .pers-chat-container.dragging {
     background-color: rgba(0, 0, 0, 0.05);
@@ -250,7 +249,6 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Для сообщений от текущего пользователя */
 .message.sent .download-button {
     background-color: #ffffff;
     border-color: #d63384;
@@ -388,4 +386,64 @@
 
 .file-icon.generic {
     background-color: #F5F5F5;
+}
+
+.image-message-container {
+    max-width: 80%;
+    margin: 5px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.image-wrapper {
+    position: relative;
+}
+
+.chat-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    display: block;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.chat-image:hover {
+    transform: scale(1.02);
+}
+
+.image-actions {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.image-wrapper:hover .image-actions {
+    opacity: 1;
+}
+
+.download-image-button {
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.download-image-button svg {
+    color: white;
+}
+
+.image-caption {
+    font-size: 12px;
+    color: #888;
+    margin-top: 5px;
+    word-break: break-word;
 }
