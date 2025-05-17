@@ -47,6 +47,12 @@ builder.Services.AddSingleton<IProducer<int, ChatMessageEvent>>(sp =>
     var config = new ProducerConfig
     {
         BootstrapServers = "kafka:9092",
+
+        MessageMaxBytes = 10485760,
+        CompressionType = CompressionType.Gzip,
+        QueueBufferingMaxMessages = 100000,
+        QueueBufferingMaxKbytes = 1024000,
+
         ClientId = Dns.GetHostName(),
         Acks = Acks.All,
         MessageTimeoutMs = 30000,
@@ -150,7 +156,11 @@ try
     {
         Name = "chat-messages",
         NumPartitions = 1,
-        ReplicationFactor = 1
+        ReplicationFactor = 1,
+        Configs = new Dictionary<string, string>
+        {
+            { "max.message.bytes", "1048576" }
+        }
     };
 
     await adminClient.CreateTopicsAsync(new[] { topicSpec });

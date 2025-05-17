@@ -2,7 +2,7 @@ using Cryptography.Interfaces;
 
 namespace Cryptography.RC5;
 
-public class KeyExpansion : IKeyExpansion
+public sealed class KeyExpansion : IKeyExpansion
 {
     private const int w = 32; // Длина слова в битах
     private const int r = 12; // Количество раундов

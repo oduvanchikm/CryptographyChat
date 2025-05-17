@@ -2,7 +2,6 @@ using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using SecureChat.Common.Models;
 
 namespace SecureChat.Broker.Services;
 
@@ -16,7 +15,9 @@ public class KafkaProducerService
     {
         var config = new ProducerConfig
         {
-            BootstrapServers = configuration["Kafka:BootstrapServers"]
+            BootstrapServers = configuration["Kafka:BootstrapServers"],
+            MessageMaxBytes = 10 * 1024 * 1024,
+            CompressionType = CompressionType.Snappy
         };
 
         _logger = logger;

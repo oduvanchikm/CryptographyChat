@@ -55,7 +55,7 @@ function LoginPage() {
         <div className="home-container">
             <div className="auth-container">
                 <div className="login-container">
-                    <h1>Sign Up</h1>
+                    <h1>Login</h1>
                     <form onSubmit={handleSubmit}>
                         <div className="input-group">
                             <label>Email</label>

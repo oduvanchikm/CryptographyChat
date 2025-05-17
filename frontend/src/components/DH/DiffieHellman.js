@@ -1,25 +1,115 @@
 /* global BigInt */
-
 class DiffieHellman {
-    constructor(p, g) {
-        console.debug('start constructor')
-        this.P = BigInt('0x' + String(p).trim());
-        console.debug('start constructor 1')
-        this.G = BigInt(String(g).trim());
-        console.debug('start constructor 2')
-        this.privateKey = null;
-        console.debug('start constructor 3')
-        this.publicKey = null;
-        console.debug('start constructor 4')
+    constructor(bitLength = 128) {
+        this.bitLength = bitLength;
+        this.p = this.generateProbablePrime(bitLength);
+        this.g = this.findPrimitiveRootSimple(this.p);
+        this.privateKey = this.generatePrivateKey();
+        this.publicKey = this.generatePublicKey();
+    }
 
-        console.debug('end constructor')
-        this.generateKeys();
-        console.debug('after generate keys constructor')
+    generateRandomBigInt(bitLength) {
+        const byteLength = Math.ceil(bitLength / 8);
+        const randomBytes = new Uint8Array(byteLength);
+        crypto.getRandomValues(randomBytes);
+
+        randomBytes[0] |= 0x80;
+        randomBytes[byteLength - 1] |= 0x01;
+
+        let hexString = '0x';
+        randomBytes.forEach(byte => {
+            hexString += byte.toString(16).padStart(2, '0');
+        });
+
+        return BigInt(hexString);
+    }
+
+    generateProbablePrime(bitLength, certainty = 20) {
+        let candidate;
+        do {
+            candidate = this.generateRandomBigInt(bitLength);
+        } while (!this.isProbablePrime(candidate, certainty));
+
+        return candidate;
+    }
+
+    isProbablePrime(n, k) {
+        if (n <= 1n) return false;
+        if (n <= 3n) return true;
+        if (n % 2n === 0n) return false;
+
+        let d = n - 1n;
+        let s = 0n;
+        while (d % 2n === 0n) {
+            d /= 2n;
+            s++;
+        }
+
+        for (let i = 0; i < k; i++) {
+            const a = this.getRandomBigInt(2n, n - 2n);
+            let x = this.modPow(a, d, n);
+
+            if (x === 1n || x === n - 1n) continue;
+
+            let j;
+            for (j = 1n; j < s; j++) {
+                x = this.modPow(x, 2n, n);
+                if (x === n - 1n) break;
+            }
+
+            if (j === s) return false;
+        }
+
+        return true;
+    }
+
+    findPrimitiveRootSimple(p) {
+        if (p === 2n) return 1n;
+        const pMinus1 = p - 1n;
+
+        const candidates = [2n, 3n, 5n, 7n, 11n];
+        for (const g of candidates) {
+            if (this.modPow(g, pMinus1, p) === 1n) {
+                return g;
+            }
+        }
+
+        throw new Error('Failed to find primitive root');
+    }
+
+    generatePrivateKey() {
+        const min = 2n;
+        const max = this.p - 2n;
+        const range = max - min;
+        const byteLength = Math.ceil(this.bitLength / 8);
+        const randomBytes = new Uint8Array(byteLength);
+
+        let privateKey;
+        do {
+            crypto.getRandomValues(randomBytes);
+            let hexString = '0x';
+            randomBytes.forEach(byte => {
+                hexString += byte.toString(16).padStart(2, '0');
+            });
+            privateKey = BigInt(hexString) % range + min;
+        } while (privateKey <= 1n || privateKey >= this.p - 1n);
+
+        return privateKey;
+    }
+
+    generatePublicKey() {
+        return this.modPow(this.g, this.privateKey, this.p);
+    }
+
+    computeSharedSecret(otherPublicKey) {
+        return this.modPow(otherPublicKey, this.privateKey, this.p);
     }
 
     modPow(base, exponent, modulus) {
+        if (modulus === 1n) return 0n;
         let result = 1n;
         base = base % modulus;
+
         while (exponent > 0n) {
             if (exponent % 2n === 1n) {
                 result = (result * base) % modulus;
@@ -27,54 +117,26 @@ class DiffieHellman {
             exponent = exponent >> 1n;
             base = (base * base) % modulus;
         }
+
         return result;
     }
 
-    generateKeys() {
-        console.debug('start generateKeys()')
-        this.privateKey = this.generatePrivateKey();
-        console.debug('2 generateKeys')
-        this.publicKey = this.modPow(this.G, this.privateKey, this.P);
-        console.debug('3 generateKeys')
-    }
+    getRandomBigInt(min, max) {
+        const range = max - min;
+        const byteLength = Math.ceil(range.toString(2).length / 8);
+        const randomBytes = new Uint8Array(byteLength);
 
-    generatePrivateKey() {
-        console.debug('start generatePrivateKey()')
-        const array = new Uint8Array(32);
-        console.debug('2 generatePrivateKey')
-        crypto.getRandomValues(array);
-        console.debug('3 generatePrivateKey')
-        let hex = '0x' + Array.from(array, x => x.toString(16).padStart(2, '0')).join('');
-        console.debug('4 generatePrivateKey')
-        const privateKey = BigInt(hex);
-        console.debug('5 generatePrivateKey')
-        return privateKey % (this.P - 1n) + 1n;
-    }
+        let result;
+        do {
+            crypto.getRandomValues(randomBytes);
+            let hexString = '0x';
+            randomBytes.forEach(byte => {
+                hexString += byte.toString(16).padStart(2, '0');
+            });
+            result = BigInt(hexString) % range + min;
+        } while (result < min || result > max);
 
-    computeSharedSecret(otherPublicKey) {
-        console.debug('1 computeSharedSecret')
-        if (!otherPublicKey) {
-            throw new Error('Public key is required');
-        }
-        console.debug('2 computeSharedSecret')
-
-        try {
-            console.debug('3 computeSharedSecret')
-            const key = typeof otherPublicKey === 'string'
-                ? otherPublicKey.trim()
-                : String(otherPublicKey);
-            console.debug('4 computeSharedSecret')
-
-            if (!/^\d+$/.test(key)) {
-                throw new Error('Invalid public key format');
-            }
-            console.debug('5 computeSharedSecret')
-
-            return this.modPow(BigInt(key), this.privateKey, this.P);
-        } catch (e) {
-            console.error('Error computing shared secret:', e);
-            throw new Error('Failed to compute shared secret');
-        }
+        return result;
     }
 }
 

@@ -2,9 +2,9 @@ using Cryptography.Interfaces;
 
 namespace Cryptography.MARS;
 
-public class KeyExpansion : IKeyExpansion
+public sealed class KeyExpansion : IKeyExpansion
 {
-        public byte[][] GenerateRoundKeys(byte[] key)
+    public byte[][] GenerateRoundKeys(byte[] key)
     {
         int n = key.Length / 4;
         Console.WriteLine(n);
@@ -65,13 +65,6 @@ public class KeyExpansion : IKeyExpansion
         {
             roundKeys[i] = BitConverter.GetBytes(K[i]);
         }
-
-        // Console.WriteLine("Generated Round Keys:");
-        // for (int i = 0; i < roundKeys.Length; i++)
-        // {
-        //     string hex = BitConverter.ToString(roundKeys[i]).Replace("-", "");
-        //     Console.WriteLine($"K[{i:D2}] = 0x{hex}");
-        // }
 
         return roundKeys;
     }

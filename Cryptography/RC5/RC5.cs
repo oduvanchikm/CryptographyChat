@@ -2,7 +2,7 @@ using Cryptography.Interfaces;
 
 namespace Cryptography.RC5;
 
-public class RC5 : ISymmetricEncryptionAlgorithm
+public sealed class RC5 : ISymmetricEncryptionAlgorithm
 {
     private IKeyExpansion _keyExpansion;
     private byte[][] _S;
@@ -20,7 +20,7 @@ public class RC5 : ISymmetricEncryptionAlgorithm
 
     public byte[] Encrypt(byte[] data)
     {
-        if (data == null) throw new ArgumentNullException(nameof(data));
+        ArgumentNullException.ThrowIfNull(data);
         if (data.Length == 0) return Array.Empty<byte>();
 
         int paddedLength = data.Length % BlockSize == 0
@@ -72,7 +72,7 @@ public class RC5 : ISymmetricEncryptionAlgorithm
 
     public byte[] Decrypt(byte[] data)
     {
-        if (data == null) throw new ArgumentNullException(nameof(data));
+        ArgumentNullException.ThrowIfNull(data);
         if (data.Length == 0) return Array.Empty<byte>();
         if (data.Length % BlockSize != 0)
             throw new ArgumentException("Data length must be a multiple of block size", nameof(data));
@@ -116,11 +116,5 @@ public class RC5 : ISymmetricEncryptionAlgorithm
         }
 
         return decrypted;
-    }
-
-    public void SetKey(byte[] key)
-    {
-        _keyExpansion = new KeyExpansion();
-        Array.Copy(_keyExpansion.GenerateRoundKeys(key), _S, _S.Length);
     }
 }

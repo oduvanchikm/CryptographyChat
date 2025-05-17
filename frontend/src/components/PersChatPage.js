@@ -2,7 +2,6 @@ import React, {useState, useEffect, useCallback} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
-import {P, G} from './DH/constants';
 /* global BigInt */
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -16,7 +15,8 @@ function bigIntToBase64(bigint) {
 }
 
 function PersChatPage() {
-    const {chatId} = useParams();
+    const { chatId } = useParams();
+    const [isUploading, setIsUploading] = useState(false);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -87,18 +87,16 @@ function PersChatPage() {
 
         const initDH = async () => {
             try {
-                const dh = new DiffieHellman(P, G);
+                const dh = new DiffieHellman(2048);
                 setDhInstance(dh);
 
                 const publicKeyBase64 = bigIntToBase64(dh.publicKey);
 
                 await fetch(`${API_BASE_URL}/chat/${chatId}/updateKey`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        publicKey: publicKeyBase64
-                    })
+                    body: JSON.stringify({ publicKey: publicKeyBase64 })
                 });
 
                 const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
@@ -106,7 +104,7 @@ function PersChatPage() {
                 });
 
                 if (keyResponse.ok) {
-                    const {publicKey} = await keyResponse.json();
+                    const { publicKey } = await keyResponse.json();
                     if (publicKey) {
                         try {
                             const otherPubKey = base64ToBigInt(publicKey);
@@ -137,12 +135,45 @@ function PersChatPage() {
     useEffect(() => {
         if (!chatId || !currentUserId) return;
 
-        const intervalId = setInterval(() => {
-            loadMessages(true);
+        function base64ToBigInt(base64) {
+            try {
+                const binaryStr = atob(base64);
+                const hex = Array.from(binaryStr)
+                    .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                    .join('');
+                return BigInt('0x' + hex);
+            } catch (e) {
+                console.error('Error converting base64 to BigInt:', e);
+                throw new Error('Invalid public key format');
+            }
+        }
+
+        const intervalId = setInterval(async () => {
+            await loadMessages(true);
+
+            if (dhInstance && !sharedSecret) {
+                try {
+                    const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
+                        credentials: 'include'
+                    });
+                    if (keyResponse.ok) {
+                        const { publicKey } = await keyResponse.json();
+                        if (publicKey) {
+                            const otherPubKey = base64ToBigInt(publicKey);
+                            const secret = dhInstance.computeSharedSecret(otherPubKey);
+                            setSharedSecret(secret);
+                            setOtherPublicKey(publicKey);
+                            console.log('🔐 Shared secret established via polling');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Polling: Failed to update DH shared secret:', e);
+                }
+            }
         }, 3000);
 
         return () => clearInterval(intervalId);
-    }, [chatId, currentUserId, loadMessages]);
+    }, [chatId, currentUserId, dhInstance, sharedSecret, loadMessages]);
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !sharedSecret) return;
@@ -151,7 +182,7 @@ function PersChatPage() {
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
             await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                     message: newMessage,
@@ -171,33 +202,35 @@ function PersChatPage() {
         const file = e.target.files[0];
         if (!file || !sharedSecret) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            alert('File size exceeds 5MB limit');
+        if (file.size === 0) {
+            alert('Cannot send empty file');
+            e.target.value = ''; 
             return;
         }
 
-        try {
-            const arrayBuffer = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
+        const maxSize = file.type.startsWith('video/') ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            alert(`File size exceeds ${maxSize / 1024 / 1024}MB limit`);
+            return;
+        }
 
+        setIsUploading(true);
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
             const base64Content = btoa(
-                new Uint8Array(arrayBuffer)
-                    .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
 
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
 
             await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: base64Content,
                     publicKey: publicKeyBase64,
-                    contentType: file.type,
+                    contentType: file.type || 'application/octet-stream',
                     fileName: file.name
                 })
             });
@@ -205,39 +238,45 @@ function PersChatPage() {
             await loadMessages(true);
         } catch (error) {
             console.error('File upload failed:', error);
+        } finally {
+            setIsUploading(false); 
+            e.target.value = ''; 
         }
     };
 
     const downloadFile = (base64Content, fileName, contentType, isImage = false) => {
         try {
-            const byteCharacters = atob(base64Content);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            console.log("Base64 content:", base64Content.encryptedContent);
+            const binaryString = atob(base64Content);
+            const byteArray = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                byteArray[i] = binaryString.charCodeAt(i);
             }
-            const byteArray = new Uint8Array(byteNumbers);
+
+            const blob = new Blob([byteArray], { type: contentType });
+            const url = window.URL.createObjectURL(blob);
 
             if (isImage) {
-                const blob = new Blob([byteArray], {type: contentType});
-                const url = window.URL.createObjectURL(blob);
                 window.open(url, '_blank');
             } else {
-                const blob = new Blob([byteArray], {type: contentType});
-                const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = fileName;
+                a.download = fileName || 'download'; 
                 document.body.appendChild(a);
                 a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
+
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
             }
         } catch (error) {
             console.error('Failed to handle file:', error);
+            alert('Failed to download file. See console for details.');
         }
     };
 
-    const decryptMessage = (encrypted) => encrypted;
+    const decryptMessage = (encrypted) => encrypted; // Placeholder
 
     if (isLoading) return <div className="loading">Loading chat...</div>;
 
@@ -251,31 +290,53 @@ function PersChatPage() {
             <div className="messages-container">
                 {messages.map((message, index) => {
                     const isCurrentUser = message.isCurrentUser;
+                    
+                    const isMedia = message.contentType && (
+                        message.contentType.startsWith('image/') ||
+                        message.contentType.startsWith('video/') ||
+                        message.contentType.startsWith('audio/')
+                    );
 
-                    const isImage = message.contentType && message.contentType.startsWith('image/');
-
-                    if (isImage) {
+                    if (isMedia) {
                         return (
                             <div key={`${message.sentAt}-${message.senderId}-${index}`}
                                  className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
                                 <div className={`message ${isCurrentUser ? 'sent' : 'received'}`}>
                                     <div className="message-header">
-                        <span className="message-username">
-                            {isCurrentUser ? 'You' : message.senderUsername}
-                        </span>
+          <span className="message-username">
+            {isCurrentUser ? 'You' : message.senderUsername}
+          </span>
                                     </div>
                                     <div className="message-content">
-                                        <img
-                                            src={`data:${message.contentType};base64,${message.encryptedContent}`}
-                                            alt={message.fileName || "Sent image"}
-                                            className="chat-image"
-                                            onClick={() => downloadFile(
-                                                message.encryptedContent,
-                                                message.fileName,
-                                                message.contentType,
-                                                true
-                                            )}
-                                        />
+                                        {message.contentType.startsWith('image/') ? (
+                                            <img
+                                                src={`data:${message.contentType};base64,${message.encryptedContent}`}
+                                                alt={message.fileName || "Sent image"}
+                                                className="chat-image"
+                                                onClick={() => downloadFile(
+                                                    message.encryptedContent,
+                                                    message.fileName,
+                                                    message.contentType,
+                                                    true
+                                                )}
+                                            />
+                                        ) : message.contentType.startsWith('video/') ? (
+                                            <video controls className="chat-video">
+                                                <source
+                                                    src={`data:${message.contentType};base64,${message.encryptedContent}`}
+                                                    type={message.contentType}
+                                                />
+                                                Your browser does not support the video tag.
+                                            </video>
+                                        ) : message.contentType.startsWith('audio/') ? (
+                                            <audio controls className="chat-audio">
+                                                <source
+                                                    src={`data:${message.contentType};base64,${message.encryptedContent}`}
+                                                    type={message.contentType}
+                                                />
+                                                Your browser does not support the audio element.
+                                            </audio>
+                                        ) : null}
                                     </div>
                                     <div className="message-time">
                                         {new Date(message.sentAt).toLocaleTimeString([], {
@@ -359,11 +420,15 @@ function PersChatPage() {
                     type="file"
                     id="file-upload"
                     onChange={handleFileUpload}
-                    style={{ display: 'none' }}
+                    style={{display: 'none'}}
                     disabled={!sharedSecret}
                 />
                 <label htmlFor="file-upload" className="file-upload-button">
-                    📎 Add File
+                    {isUploading ? (
+                        <div className="upload-spinner"></div> 
+                    ) : (
+                        '📎 Add File'
+                    )}
                 </label>
                 {!sharedSecret && (
                     <div className="warning">Establishing secure connection...</div>

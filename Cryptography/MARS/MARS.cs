@@ -2,7 +2,7 @@ using Cryptography.Interfaces;
 
 namespace Cryptography.MARS;
 
-public class MARS : ISymmetricEncryptionAlgorithm
+public sealed class MARS : ISymmetricEncryptionAlgorithm
 {
     private byte[][] roundKeys;
     private IKeyExpansion _keyExpansion;

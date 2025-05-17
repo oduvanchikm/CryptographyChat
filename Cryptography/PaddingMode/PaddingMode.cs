@@ -11,7 +11,7 @@ public class PaddingMode
         PKCS7, // дополняет данные байтами, каждый из которых равен количеству добавленных байтов (03 03 03)
         ISO_10126 // дополняет данные случайными байтами, а последний байт указывает количество добавленных байтов (AF DF 03)
     }
-    
+
     public static Mode ToPaddingMode(string paddingModeString)
     {
         return paddingModeString switch
@@ -28,7 +28,15 @@ public class PaddingMode
     {
         int paddingLength = blockSize - (data.Length % blockSize);
 
-        if (paddingLength == blockSize) return data;
+        if (paddingLength == blockSize && paddingMode != Mode.Zeros)
+        {
+            paddingLength = blockSize;
+        }
+        else if (paddingLength == blockSize && paddingMode == Mode.Zeros)
+        {
+            return data;
+        }
+
 
         byte[] paddedData = new byte[data.Length + paddingLength];
         Buffer.BlockCopy(data, 0, paddedData, 0, data.Length);
@@ -36,43 +44,36 @@ public class PaddingMode
         switch (paddingMode)
         {
             case Mode.ANSI_X_923:
-                paddedData = ApplyANSI_X_923Padding(paddedData, data.Length, paddingLength);
+                ApplyANSI_X_923Padding(paddedData, data.Length, paddingLength);
                 break;
 
             case Mode.PKCS7:
-                paddedData = ApplyPKCS7Padding(paddedData, data.Length, paddingLength);
+                ApplyPKCS7Padding(paddedData, data.Length, paddingLength);
                 break;
 
             case Mode.ISO_10126:
-                paddedData = ApplyISO_10126Padding(paddedData, data.Length, paddingLength);
+                ApplyISO_10126Padding(paddedData, data.Length, paddingLength);
                 break;
         }
 
         return paddedData;
     }
 
-    private static byte[] ApplyANSI_X_923Padding(byte[] paddedData, int originalSize, int paddingLength)
+    private static void ApplyANSI_X_923Padding(byte[] paddedData, int originalSize, int paddingLength)
     {
-        for (int i = originalSize; i < paddingLength - 1; ++i)
-        {
-            paddedData[i] = 0x00;
-        }
-
+        Array.Clear(paddedData, originalSize, paddingLength - 1);
         paddedData[^1] = (byte)paddingLength;
-        return paddedData;
     }
 
-    private static byte[] ApplyPKCS7Padding(byte[] paddedData, int originalSize, int paddingLength)
+    private static void ApplyPKCS7Padding(byte[] paddedData, int originalSize, int paddingLength)
     {
-        for (int i = originalSize; i < paddingLength; ++i)
+        for (int i = originalSize; i < paddedData.Length; i++)
         {
             paddedData[i] = (byte)paddingLength;
         }
-
-        return paddedData;
     }
 
-    private static byte[] ApplyISO_10126Padding(byte[] paddedData, int originalSize, int paddingLength)
+    private static void ApplyISO_10126Padding(byte[] paddedData, int originalSize, int paddingLength)
     {
         using (var rng = RandomNumberGenerator.Create())
         {
@@ -82,106 +83,97 @@ public class PaddingMode
         }
 
         paddedData[^1] = (byte)paddingLength;
-        return paddedData;
     }
 
     public static byte[] DeletePadding(byte[] data, Mode paddingMode)
     {
-        int paddingLength = 0;
+        if (data == null || data.Length == 0)
+            return data;
 
-        switch (paddingMode)
+        try
         {
-            case Mode.Zeros:
-                paddingLength = GetZerosPaddingLength(data);
-                if (paddingLength == 0)
-                {
-                    return data;
-                }
-                break;
+            int paddingLength = GetPaddingLength(data, paddingMode);
 
-            case Mode.ANSI_X_923:
-                paddingLength = GetANSI_X_923PaddingLength(data);
-                if (paddingLength == 0)
-                {
-                    return data;
-                }
-                break;
+            if (paddingLength <= 0 || paddingLength > data.Length)
+                return data;
 
-            case Mode.PKCS7:
-                paddingLength = GetPKCS7PaddingLength(data);
-                if (paddingLength == 0)
-                {
-                    return data;
-                }
-                break;
-
-            case Mode.ISO_10126:
-                paddingLength = GetISO_10126PaddingLength(data);
-                if (paddingLength == 0)
-                {
-                    return data;
-                }
-                break;
+            byte[] result = new byte[data.Length - paddingLength];
+            Buffer.BlockCopy(data, 0, result, 0, result.Length);
+            return result;
         }
+        catch (CryptographicException)
+        {
+            return data;
+        }
+    }
 
-        byte[] result = new byte[data.Length - paddingLength];
-        Buffer.BlockCopy(data, 0, result, 0, result.Length);
+    private static int GetPaddingLength(byte[] data, Mode paddingMode)
+    {
+        if (data == null || data.Length == 0)
+            return 0;
 
-        return result;
+        return paddingMode switch
+        {
+            Mode.Zeros => GetZerosPaddingLength(data),
+            Mode.ANSI_X_923 => GetAnsiX923PaddingLength(data),
+            Mode.PKCS7 => GetPkcs7PaddingLength(data),
+            Mode.ISO_10126 => GetIso10126PaddingLength(data),
+            _ => 0
+        };
     }
 
     private static int GetZerosPaddingLength(byte[] data)
     {
         int i = data.Length - 1;
         while (i >= 0 && data[i] == 0)
-        {
             i--;
-        }
 
         return data.Length - i - 1;
     }
 
-    private static int GetANSI_X_923PaddingLength(byte[] data)
+    private static int GetAnsiX923PaddingLength(byte[] data)
     {
-        int paddingLength = data[^1];
-
-        for (int i = data.Length - paddingLength; i < data.Length - 1; i++)
-        {
-            if (data[i] != 0)
-            {
-                throw new CryptographicException("Invalid ANSI X.923 padding");
-            }
-        }
-
-        return paddingLength;
-    }
-
-    private static int GetPKCS7PaddingLength(byte[] data)
-    {
-        int paddingLength = data[^1];
-
-        for (int i = data.Length - paddingLength; i < data.Length; i++)
-        {
-            if (data[i] != paddingLength)
-            {
-                throw new CryptographicException("Invalid PKCS7 padding");
-            }
-        }
-
-        return paddingLength;
-    }
-
-    private static int GetISO_10126PaddingLength(byte[] data)
-    {
-        if (data == null || data.Length == 0)
-            throw new ArgumentException("Data cannot be null or empty");
+        if (data.Length == 0) return 0;
 
         int paddingLength = data[^1];
 
         if (paddingLength <= 0 || paddingLength > data.Length)
             return 0;
 
-        if (paddingLength > data.Length)
+        for (int i = data.Length - paddingLength; i < data.Length - 1; i++)
+        {
+            if (data[i] != 0)
+                throw new CryptographicException("Invalid ANSI X.923 padding");
+        }
+
+        return paddingLength;
+    }
+
+    private static int GetPkcs7PaddingLength(byte[] data)
+    {
+        if (data.Length == 0) return 0;
+
+        int paddingLength = data[^1];
+
+        if (paddingLength <= 0 || paddingLength > data.Length)
+            return 0;
+
+        for (int i = data.Length - paddingLength; i < data.Length; i++)
+        {
+            if (data[i] != paddingLength)
+                throw new CryptographicException("Invalid PKCS7 padding");
+        }
+
+        return paddingLength;
+    }
+
+    private static int GetIso10126PaddingLength(byte[] data)
+    {
+        if (data.Length == 0) return 0;
+
+        int paddingLength = data[^1];
+
+        if (paddingLength <= 0 || paddingLength > data.Length)
             return 0;
 
         return paddingLength;

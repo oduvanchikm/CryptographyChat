@@ -162,10 +162,8 @@ public class BitManipulation
     public static byte[] Generate(int size)
     {
         byte[] iv = new byte[size];
-        using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(iv);
-        }
+        using RandomNumberGenerator rng = RandomNumberGenerator.Create();
+        rng.GetBytes(iv);
 
         return iv;
     }

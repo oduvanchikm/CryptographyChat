@@ -151,7 +151,7 @@ public class ChatController(
         }
     }
 
-    [HttpPost("{chatId}/send")]
+    [HttpPost("{chatId}/send")] // конц токен
     public async Task<IActionResult> SendMessage(int chatId, [FromBody] SendMessageRequest request)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync();
@@ -176,9 +176,10 @@ public class ChatController(
         // получаем сообщение в стринге 
         Console.WriteLine("1. [SendMessage] Message: " + request.Message);
     
-        if (request.ContentType == "file")
+        if (request.ContentType == "file" || request.ContentType.StartsWith("video/") || 
+            request.ContentType.StartsWith("audio/"))
         {
-            if (request.Message.Length > 5 * 1024 * 1024 * 4 / 3)
+            if (request.Message.Length > 10 * 1024 * 1024 * 4 / 3)
             {
                 return BadRequest("File size exceeds 5MB limit");
             }
