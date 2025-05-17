@@ -15,7 +15,7 @@ function bigIntToBase64(bigint) {
 }
 
 function PersChatPage() {
-    const { chatId } = useParams();
+    const {chatId} = useParams();
     const [isUploading, setIsUploading] = useState(false);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
@@ -94,9 +94,9 @@ function PersChatPage() {
 
                 await fetch(`${API_BASE_URL}/chat/${chatId}/updateKey`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
-                    body: JSON.stringify({ publicKey: publicKeyBase64 })
+                    body: JSON.stringify({publicKey: publicKeyBase64})
                 });
 
                 const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
@@ -104,7 +104,7 @@ function PersChatPage() {
                 });
 
                 if (keyResponse.ok) {
-                    const { publicKey } = await keyResponse.json();
+                    const {publicKey} = await keyResponse.json();
                     if (publicKey) {
                         try {
                             const otherPubKey = base64ToBigInt(publicKey);
@@ -157,7 +157,7 @@ function PersChatPage() {
                         credentials: 'include'
                     });
                     if (keyResponse.ok) {
-                        const { publicKey } = await keyResponse.json();
+                        const {publicKey} = await keyResponse.json();
                         if (publicKey) {
                             const otherPubKey = base64ToBigInt(publicKey);
                             const secret = dhInstance.computeSharedSecret(otherPubKey);
@@ -182,7 +182,7 @@ function PersChatPage() {
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
             await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
                 body: JSON.stringify({
                     message: newMessage,
@@ -204,7 +204,7 @@ function PersChatPage() {
 
         if (file.size === 0) {
             alert('Cannot send empty file');
-            e.target.value = ''; 
+            e.target.value = '';
             return;
         }
 
@@ -226,7 +226,7 @@ function PersChatPage() {
 
             await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     message: base64Content,
                     publicKey: publicKeyBase64,
@@ -239,8 +239,8 @@ function PersChatPage() {
         } catch (error) {
             console.error('File upload failed:', error);
         } finally {
-            setIsUploading(false); 
-            e.target.value = ''; 
+            setIsUploading(false);
+            e.target.value = '';
         }
     };
 
@@ -253,7 +253,7 @@ function PersChatPage() {
                 byteArray[i] = binaryString.charCodeAt(i);
             }
 
-            const blob = new Blob([byteArray], { type: contentType });
+            const blob = new Blob([byteArray], {type: contentType});
             const url = window.URL.createObjectURL(blob);
 
             if (isImage) {
@@ -261,7 +261,7 @@ function PersChatPage() {
             } else {
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = fileName || 'download'; 
+                a.download = fileName || 'download';
                 document.body.appendChild(a);
                 a.click();
 
@@ -276,9 +276,62 @@ function PersChatPage() {
         }
     };
 
-    const decryptMessage = (encrypted) => encrypted; // Placeholder
+    const decryptMessage = (encrypted) => encrypted;
 
     if (isLoading) return <div className="loading">Loading chat...</div>;
+
+    const FileIcon = ({fileType, fileName}) => {
+        const getFileIcon = () => {
+            const extension = fileName?.split('.').pop().toLowerCase();
+
+            if (fileType === 'application/pdf' || extension === 'pdf') {
+                return (
+                    <div className="file-icon pdf">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
+                                fill="#FF5252"/>
+                            <path d="M14 2V8H20" fill="#FF7B7B"/>
+                            <path d="M16 13H8V11H16V13Z" fill="white"/>
+                            <path d="M16 17H8V15H16V17Z" fill="white"/>
+                            <path d="M10 9H9V10H10V9Z" fill="white"/>
+                        </svg>
+                    </div>
+                );
+            }
+
+            if (fileType === 'text/plain' || extension === 'txt') {
+                return (
+                    <div className="file-icon txt">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
+                                fill="#2196F3"/>
+                            <path d="M14 2V8H20" fill="#64B5F6"/>
+                            <path d="M16 13H8V11H16V13Z" fill="white"/>
+                            <path d="M16 17H8V15H16V17Z" fill="white"/>
+                            <path d="M16 9H8V7H16V9Z" fill="white"/>
+                        </svg>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="file-icon generic">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
+                            fill="#9E9E9E"/>
+                        <path d="M14 2V8H20" fill="#BDBDBD"/>
+                        <path d="M16 13H8V11H16V13Z" fill="white"/>
+                        <path d="M16 17H8V15H16V17Z" fill="white"/>
+                    </svg>
+                </div>
+            );
+        };
+
+        return getFileIcon();
+    };
 
     return (
         <div className="pers-chat-container">
@@ -290,7 +343,7 @@ function PersChatPage() {
             <div className="messages-container">
                 {messages.map((message, index) => {
                     const isCurrentUser = message.isCurrentUser;
-                    
+
                     const isMedia = message.contentType && (
                         message.contentType.startsWith('image/') ||
                         message.contentType.startsWith('video/') ||
@@ -347,8 +400,7 @@ function PersChatPage() {
                                 </div>
                             </div>
                         );
-                    }
-                    else if (message.contentType && message.contentType !== 'text') {
+                    } else if (message.contentType && message.contentType !== 'text') {
                         return (
                             <div key={`${message.sentAt}-${message.senderId}-${index}`}
                                  className={`message-wrapper ${isCurrentUser ? 'sent' : 'received'}`}>
@@ -358,13 +410,34 @@ function PersChatPage() {
                             {isCurrentUser ? 'You' : message.senderUsername}
                         </span>
                                     </div>
-                                    <div className="message-content">
-                                        <button onClick={() => downloadFile(
-                                            message.encryptedContent,
-                                            message.fileName,
-                                            message.contentType
-                                        )}>
-                                            Download {message.fileName}
+                                    <div className="message-content file-message">
+                                        <div className="file-header">
+                                            <FileIcon fileType={message.contentType} fileName={message.fileName}/>
+                                            <div className="file-meta">
+                                                <div className="file-name">{message.fileName}</div>
+                                                <div className="file-size">
+                                                    {Math.round(message.encryptedContent.length / 1024)} KB
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            className="download-button"
+                                            onClick={() => downloadFile(
+                                                message.encryptedContent,
+                                                message.fileName,
+                                                message.contentType
+                                            )}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                 xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px'}}>
+                                                <path d="M12 15V3M12 15L8 11M12 15L16 11" stroke="currentColor"
+                                                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path
+                                                    d="M20 17V19C20 20.1046 19.1046 21 18 21H6C4.89543 21 4 20.1046 4 19V17"
+                                                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                                    strokeLinejoin="round"/>
+                                            </svg>
+                                            Download
                                         </button>
                                     </div>
                                     <div className="message-time">
@@ -425,7 +498,7 @@ function PersChatPage() {
                 />
                 <label htmlFor="file-upload" className="file-upload-button">
                     {isUploading ? (
-                        <div className="upload-spinner"></div> 
+                        <div className="upload-spinner"></div>
                     ) : (
                         '📎 Add File'
                     )}

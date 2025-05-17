@@ -330,9 +330,11 @@ function ChatsPage() {
                                                 {chat.lastMessage || 'No messages yet'}
                                             </p>
                                         </div>
-                                        <button className="delete-chat-btn" onClick={(e) => deleteChat(chat.id, e)}
-                                                title="Delete chat">
-                                            🗑️
+                                        <button
+                                            className="delete-chat-btn"
+                                            onClick={(e) => deleteChat(chat.id, e)}
+                                        >
+                                            🗑
                                         </button>
                                     </li>
                                 ))}
@@ -345,7 +347,7 @@ function ChatsPage() {
                                     onClick={() => setIsSearchFocused(true)}
                                     disabled={creatingChat}
                                 >
-                                    Start New Chat
+                                Start New Chat
                                 </button>
                             </div>
                         )}
