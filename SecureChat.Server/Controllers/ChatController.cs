@@ -291,7 +291,6 @@ public class ChatController(
                 string decryptedContent;
                 if (message.ContentType == "file" || message.ContentType == "application/pdf" || message.ContentType == "application/txt")
                 {
-                    // Для файлов оставляем как base64
                     decryptedContent = Convert.ToBase64String(decryptedBytes);
                 }
                 else
