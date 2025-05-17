@@ -296,7 +296,6 @@ public class ChatController(
                 else
                 {
                     // декодируем оригинальное сообщение из байтов
-                    // Для текста декодируем в строку
                     decryptedContent = Encoding.UTF8.GetString(decryptedBytes);
                     // Console.WriteLine("3. [HistoryMessage] Decrypted message: " + decryptedContent);
                 }
