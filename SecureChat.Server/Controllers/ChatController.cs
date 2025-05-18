@@ -177,7 +177,8 @@ public class ChatController(
         // Console.WriteLine("1. [SendMessage] Message: " + request.Message);
     
         if (request.ContentType == "file" || request.ContentType.StartsWith("video/") || 
-            request.ContentType.StartsWith("audio/"))
+            request.ContentType.StartsWith("audio/") || request.ContentType == "application/pdf" || 
+            request.ContentType == "application/txt")
         {
             if (request.Message.Length > 10 * 1024 * 1024 * 4 / 3)
             {
@@ -287,6 +288,8 @@ public class ChatController(
                     chatId,
                     message.SenderId
                 );
+                
+                // await System.IO.File.WriteAllBytesAsync("/Users/oduvanchik/Desktop/SecureChatSolution/SecureChat.Server/Controllers/debug.pdf", decryptedBytes);
                 
                 string decryptedContent;
                 if (message.ContentType == "file" || message.ContentType == "application/pdf" || message.ContentType == "application/txt")
