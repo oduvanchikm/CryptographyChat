@@ -87,15 +87,13 @@ public class PaddingMode
 
     public static byte[] DeletePadding(byte[] data, Mode paddingMode)
     {
-        if (data == null || data.Length == 0)
-            return data;
+        if (data == null || data.Length == 0) return data;
 
         try
         {
             int paddingLength = GetPaddingLength(data, paddingMode);
 
-            if (paddingLength <= 0 || paddingLength > data.Length)
-                return data;
+            if (paddingLength <= 0 || paddingLength > data.Length) return data;
 
             byte[] result = new byte[data.Length - paddingLength];
             Buffer.BlockCopy(data, 0, result, 0, result.Length);
@@ -173,7 +171,7 @@ public class PaddingMode
 
         int paddingLength = data[^1];
 
-        if (paddingLength <= 0 || paddingLength > data.Length)
+        if (paddingLength <= 0 || paddingLength > 16)
             return 0;
 
         return paddingLength;

@@ -198,6 +198,17 @@ function PersChatPage() {
         }
     };
 
+    function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
+
+
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file || !sharedSecret) return;
@@ -218,9 +229,7 @@ function PersChatPage() {
 
         try {
             const arrayBuffer = await file.arrayBuffer();
-            const base64Content = btoa(
-                new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-            );
+            const base64Content = arrayBufferToBase64(arrayBuffer);
 
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
 
@@ -246,7 +255,7 @@ function PersChatPage() {
 
     const downloadFile = (base64Content, fileName, contentType, isImage = false) => {
         try {
-            console.log("Base64 content:", base64Content.encryptedContent);
+            console.log("Base64 content:", base64Content);
             const binaryString = atob(base64Content);
             const byteArray = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {

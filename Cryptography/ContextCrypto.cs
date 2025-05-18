@@ -120,10 +120,10 @@ public class ContextCrypto
             CipherMode.CipherMode.Mode.NONE => _encryptor.Decrypt(data),
             _ => throw new NotSupportedException()
         };
-        if (_cipherMode != CipherMode.CipherMode.Mode.NONE)
-        {
-            return PaddingMode.PaddingMode.DeletePadding(decryptedData, _paddingMode);
-        }
+        // if (_cipherMode != CipherMode.CipherMode.Mode.NONE)
+        // {
+        //     return PaddingMode.PaddingMode.DeletePadding(decryptedData, _paddingMode);
+        // }
 
         return decryptedData;
     }

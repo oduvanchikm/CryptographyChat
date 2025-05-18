@@ -210,6 +210,10 @@ public class ChatController(
         // переводим результат из байтов в стрингу
         var base64EncryptedContent = Convert.ToBase64String(encryptedContent);
         // Console.WriteLine("4. [SendMessage] Encrypted Base64: " + base64EncryptedContent);
+        
+        Console.WriteLine($"Original file size: {messageBytes.Length} bytes");
+        Console.WriteLine($"Encrypted size: {encryptedContent.Length} bytes");
+        Console.WriteLine($"Base64 encrypted length: {base64EncryptedContent.Length} chars");
 
         // добавляем необходимые данные
         var messageEvent = new ChatMessageEvent
@@ -313,6 +317,9 @@ public class ChatController(
                     ContentType = message.ContentType,
                     FileName = message.FileName
                 });
+                
+                Console.WriteLine($"Received encrypted length: {messageString.Length} chars");
+                Console.WriteLine($"Decrypted size: {decryptedBytes.Length} bytes");
             }
             catch (FormatException ex)
             {
