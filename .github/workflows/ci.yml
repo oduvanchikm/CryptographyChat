@@ -1,0 +1,20 @@
+name: Docker CI
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Build docker-compose
+        run: | 
+          docker-compose -f docker-compose.yml build
+          
