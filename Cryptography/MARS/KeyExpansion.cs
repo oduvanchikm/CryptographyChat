@@ -11,7 +11,6 @@ public sealed class KeyExpansion : IKeyExpansion
         uint[] T = new uint[15];
         uint[] K = new uint[40];
 
-        // init T[0...n-1] = key[...]
         for (int i = 0; i < n; ++i)
         {
             T[i] = BitConverter.ToUInt32(key, i * 4);
@@ -25,13 +24,11 @@ public sealed class KeyExpansion : IKeyExpansion
 
         for (int j = 0; j < 4; ++j)
         {
-            // linear Key-Word Expansion
             for (int i = 0; i < 15; i++)
             {
                 T[i] ^= BitManipulation.LeftRotate(T[(i + 8) % 15] ^ T[(i + 13) % 15], 3) ^ (uint)(4 * i + j);
             }
 
-            // S-box Based Stirring
             for (int round = 0; round < 4; round++)
             {
                 for (int i = 0; i < 15; i++)
@@ -41,7 +38,6 @@ public sealed class KeyExpansion : IKeyExpansion
                 }
             }
 
-            // store next 10 key words into K
             for (int i = 0; i < 10; i++)
             {
                 K[10 * j + i] = T[(4 * i) % 15];

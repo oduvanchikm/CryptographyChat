@@ -72,9 +72,15 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "6379:6379"
+      - "6380:6379"
     networks:
       - securechat_network
+        
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3001:80"
 
 volumes:
   postgres_data:
