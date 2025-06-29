@@ -23,8 +23,7 @@ jobs:
         run: dotnet restore
 
       - name: Run tests
-        run: dotnet test ./CryptographyChat.Tests/CryptographyChat.Tests.csproj
-  
+        run: dotnet test ./CryptographyChat.Tests/CryptographyChat.Tests.csproj --no-restore --verbosity normal
   
   docker-build:
     name: Build Docker Images
