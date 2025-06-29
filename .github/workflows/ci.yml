@@ -1,8 +1,5 @@
 name: Docker CI
 
-permissions:
-  contests: read
-
 on:
   push:
     branches: [ develop ]
@@ -26,8 +23,8 @@ jobs:
         run: dotnet restore
 
       - name: Run tests
-        run: dotnet test --no-restore --verbosity normal
-      
+        run: dotnet test ./CryptographyChat.Tests/CryptographyChat.Tests.csproj
+  
   
   docker-build:
     name: Build Docker Images
