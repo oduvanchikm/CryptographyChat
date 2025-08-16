@@ -4,7 +4,7 @@ import './PersChatPage.css';
 import DiffieHellman from './DH/DiffieHellman';
 /* global BigInt */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+// const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function bigIntToBase64(bigint) {
     const hex = bigint.toString(16);
@@ -28,7 +28,10 @@ function PersChatPage() {
 
     useEffect(() => {
         const fetchCurrentUser = async () => {
-            const response = await fetch(`${API_BASE_URL}/auth/me`, {
+
+            // 'http://localhost:5079/api/auth/login'
+            // const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            const response = await fetch(`http://localhost:5079/api/auth/me`, {
                 credentials: 'include'
             });
             const user = await response.json();
@@ -39,7 +42,8 @@ function PersChatPage() {
 
     const loadMessages = useCallback(async (onlyNew = false) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/chat/${chatId}/history?count=50`, {
+            // const response = await fetch(`${API_BASE_URL}/chat/${chatId}/history?count=50`, {
+            const response = await fetch(`http://localhost:5079/api/chat/${chatId}/history?count=50`, {
                 credentials: 'include'
             });
 
@@ -92,14 +96,16 @@ function PersChatPage() {
 
                 const publicKeyBase64 = bigIntToBase64(dh.publicKey);
 
-                await fetch(`${API_BASE_URL}/chat/${chatId}/updateKey`, {
+                // await fetch(`${API_BASE_URL}/chat/${chatId}/updateKey`, {
+                await fetch(`http://localhost:5079/api/chat/${chatId}/updateKey`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
                     body: JSON.stringify({publicKey: publicKeyBase64})
                 });
 
-                const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
+                // const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
+                const keyResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/participantKey`, {
                     credentials: 'include'
                 });
 
@@ -153,7 +159,8 @@ function PersChatPage() {
 
             if (dhInstance && !sharedSecret) {
                 try {
-                    const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
+                    // const keyResponse = await fetch(`${API_BASE_URL}/chat/${chatId}/participantKey`, {
+                    const keyResponse = await fetch(`http://localhost:5079/api/chat/${chatId}/participantKey`, {
                         credentials: 'include'
                     });
                     if (keyResponse.ok) {
@@ -180,7 +187,8 @@ function PersChatPage() {
 
         try {
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
-            await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
+            // await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
+            await fetch(`http://localhost:5079/api/chat/${chatId}/send`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
@@ -233,7 +241,8 @@ function PersChatPage() {
 
             const publicKeyBase64 = bigIntToBase64(dhInstance.publicKey);
 
-            await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
+            // await fetch(`${API_BASE_URL}/chat/${chatId}/send`, {
+            await fetch(`http://localhost:5079/api/chat/${chatId}/send`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
